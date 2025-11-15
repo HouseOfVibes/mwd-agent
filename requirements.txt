@@ -1,20 +1,20 @@
 # AI APIs
-anthropic>=0.45.0              # Claude Sonnet 4.5 - Strategic deliverables
-google-genai>=1.0.0            # Gemini (NEW SDK, GA May 2025) - Primary workspace AI
-openai>=1.0.0                  # GPT-4o/GPT-4.1 - Internal team communication
-perplexityai>=0.1.0            # Perplexity Sonar Pro - Client communication & research
+anthropic>=0.73.0              # Claude Sonnet 4.5 - Strategic deliverables (Nov 2025)
+google-genai>=1.50.0           # Gemini 2.0 Flash - Primary workspace AI (Nov 2025)
+openai>=2.8.0                  # GPT-4o/GPT-4.1 - Internal team communication (Nov 2025)
+perplexityai>=0.20.0           # Perplexity Sonar Pro - Client communication & research (2025)
 
 # Web Framework
-flask>=3.1.0
-python-dotenv>=1.0.0
+flask>=3.1.2                   # Latest stable (Aug 2025)
+python-dotenv>=1.2.1           # Latest stable (Oct 2025)
 
 # HTTP Client
-requests>=2.32.0
+requests>=2.32.5               # Latest stable (Aug 2025)
 
 # Integration APIs
-notion-client>=2.0.0           # Notion API
-slack-sdk>=3.0.0               # Slack API
-supabase>=2.0.0                # Supabase client
+notion-client>=2.7.0           # Notion API (Oct 2025)
+slack-sdk>=3.38.0              # Slack API (Oct 2025)
+supabase>=2.24.0               # Supabase client (Nov 2025)
 
 # Note: google-generativeai is DEPRECATED - use google-genai instead
 # Support for google-generativeai ends November 30, 2025
