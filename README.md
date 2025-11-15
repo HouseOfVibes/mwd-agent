@@ -83,15 +83,15 @@ The API will be available at `http://localhost:8080`
 Create a `.env` file with the following:
 
 ```bash
-# Required
+# Required - Current MVP
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
 
-# Planned Integrations
-GEMINI_API_KEY=your_gemini_api_key_here
-CHATGPT_API_KEY=your_openai_api_key_here
-PERPLEXITY_API_KEY=your_perplexity_api_key_here
+# Planned Multi-AI Integration (Phase 2)
+GEMINI_API_KEY=your_gemini_api_key_here           # Primary workspace AI
+OPENAI_API_KEY=your_openai_api_key_here           # Internal team communication
+PERPLEXITY_API_KEY=your_perplexity_api_key_here   # Client communication & research
 
-# Optional - Leave empty for local testing
+# Optional - Workspace Integrations
 SUPABASE_URL=
 SUPABASE_KEY=
 SLACK_TOKEN=
@@ -103,6 +103,15 @@ GOOGLE_CLIENT_SECRET=
 MWD_INVOICE_SYSTEM_URL=
 MWD_INVOICE_SYSTEM_API_KEY=
 ```
+
+### AI SDK Versions (Latest 2025)
+
+- **Gemini**: Use `google-genai` (NEW - GA May 2025) - ⚠️ `google-generativeai` is deprecated
+- **Claude**: Use `anthropic>=0.45.0` with Sonnet 4.5
+- **OpenAI**: Use `openai>=1.0.0` with GPT-4o or GPT-4.1
+- **Perplexity**: Use `perplexityai` with Sonar Pro model
+
+See [docs/API_INTEGRATION_GUIDE.md](docs/API_INTEGRATION_GUIDE.md) for detailed integration instructions.
 
 ## 📡 API Endpoints
 
@@ -251,10 +260,11 @@ See [PROJECT_PLAN.md](PROJECT_PLAN.md) for the complete 7-sprint development roa
 
 ## 📚 Documentation
 
-- [PROJECT_PLAN.md](PROJECT_PLAN.md) - Comprehensive project plan with architecture, workflows, and roadmap
+- [PROJECT_PLAN.md](PROJECT_PLAN.md) - Comprehensive 7-sprint project plan with architecture and roadmap
+- [docs/API_INTEGRATION_GUIDE.md](docs/API_INTEGRATION_GUIDE.md) - Complete guide for all AI API integrations (2025 best practices)
 - [docs/conversation-history/](docs/conversation-history/) - Design conversation screenshots
 - API Reference (coming soon)
-- Integration Guides (coming soon)
+- Notion Integration Guide (coming soon)
 
 ## 🤝 Contributing
 
