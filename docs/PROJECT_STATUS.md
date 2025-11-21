@@ -1,7 +1,7 @@
 # MWD Agent - Project Status
 
-**Last Updated:** November 20, 2025
-**Current Version:** 2.0.0
+**Last Updated:** November 21, 2025
+**Current Version:** 2.1.0
 
 ---
 
@@ -26,14 +26,15 @@
 - [x] Notion API integration (projects, meeting notes, search)
 - [x] Google Workspace integration (Drive, Docs)
 - [x] Webhook signature verification (HMAC-SHA256)
+- [x] Conversational Slack bot with Gemini orchestrator
 
 ### Phase 4: Production Hardening (IN PROGRESS)
-- [ ] Supabase database integration for state persistence
-- [ ] Slack notifications for events
+- [x] Supabase schema defined (needs table creation)
+- [ ] Slack bot authentication (token configuration)
 - [ ] Error monitoring and alerting
 - [ ] Rate limiting
 - [ ] API authentication for endpoints
-- [ ] Logging to external service
+- [ ] Production WSGI server (Gunicorn)
 
 ### Phase 5: Advanced Features (PLANNED)
 - [ ] Automated workflow triggers based on project status
@@ -50,25 +51,25 @@
 | Service | Model | Status | Use Case |
 |---------|-------|--------|----------|
 | Anthropic | Claude Sonnet 4.5 | Active | Strategy generation (branding, website, social, copy) |
-| Google | Gemini 2.0 Flash | Ready | Meeting notes, document summarization, workflow orchestration |
-| OpenAI | GPT-4o | Ready | Team communication, Slack messages, feedback analysis |
-| Perplexity | Sonar Pro | Ready | Research, competitor analysis, client emails |
+| Google | Gemini 2.0 Flash | Active | Orchestrator brain, meeting notes, summarization |
+| OpenAI | GPT-4o | Active | Team communication, Slack messages, feedback analysis |
+| Perplexity | Sonar Pro | Active | Research, competitor analysis, client emails |
 
 ### Integrations
 | Platform | Status | Capabilities |
 |----------|--------|--------------|
+| Slack Bot | Pending Auth | Conversational interface with Gemini orchestrator |
 | Invoice System | Ready | Receive webhooks, create leads, attach deliverables |
 | Notion | Ready | Create projects, meeting notes, search workspace |
 | Google Drive | Ready | Folders, project structure, file sharing |
 | Google Docs | Ready | Documents, formatted deliverables |
-| Supabase | Configured | Database connection (implementation pending) |
-| Slack | Configured | Token ready (notification implementation pending) |
+| Supabase | Schema Ready | Database schema defined, needs table creation |
 
 ---
 
 ## API Endpoints Summary
 
-**Total Endpoints:** 30+
+**Total Endpoints:** 35+
 
 ### Strategy (4)
 - `POST /branding` - Brand identity generation
@@ -109,6 +110,10 @@
 - `POST /google/docs/document` - Create document
 - `POST /google/docs/deliverable` - Create deliverable doc
 
+### Slack Bot (2)
+- `POST /slack/events` - Slack Events API handler
+- `POST /slack/interact` - Interactive components handler
+
 ### Webhooks (2)
 - `POST /api/intake` - Receive client intake
 - `POST /api/project/status` - Receive status updates
@@ -122,18 +127,21 @@
 ANTHROPIC_API_KEY
 ```
 
-### Optional (for full functionality)
+### For Full Functionality
 ```
 # AI Services
 GEMINI_API_KEY
 OPENAI_API_KEY
 PERPLEXITY_API_KEY
 
+# Slack Bot (conversational interface)
+SLACK_BOT_TOKEN
+SLACK_SIGNING_SECRET
+
 # Integrations
 NOTION_API_KEY
 SUPABASE_URL
 SUPABASE_KEY
-SLACK_TOKEN
 
 # Google Workspace
 GOOGLE_CLOUD_PROJECT
@@ -147,71 +155,60 @@ MWD_WEBHOOK_SECRET
 
 ---
 
-## Next Steps (Priority Order)
-
-1. **Configure Invoice System** - Set up webhooks to send to Agent endpoints
-2. **Add Supabase tables** - Store project state, deliverables, logs
-3. **Implement Slack notifications** - Alert team on key events
-4. **Add API authentication** - Secure non-webhook endpoints
-5. **Deploy monitoring** - Track errors and performance
-
----
-
 ## Deployment
 
 **Platform:** Railway
 **URL:** https://mwd-agent.railway.app
 **Branch:** main
+**Version:** 2.1.0
 
-### Currently Deployed (main branch)
-- Core Flask application
-- Claude strategy endpoints (/branding, /website, /social, /copywriting)
-- Invoice System webhooks (/api/intake, /api/project/status)
-- Basic health check endpoint
+### Currently Deployed
+- All AI endpoints (Gemini, OpenAI, Perplexity)
+- All strategy endpoints (branding, website, social, copywriting)
+- All integration endpoints (Notion, Google Workspace)
+- Slack bot endpoints (pending valid token)
+- Invoice System webhooks
 
-### Pending Deployment (merge required)
-The following features are on the feature branch and need to be merged to main:
+### Known Issues
+1. **Slack bot auth failing** - Need valid SLACK_BOT_TOKEN from Slack app
+2. **Google API warning** - Fixed in next deploy (added dependencies)
 
-- **v2.0.0 Multi-AI Orchestration**
-  - Gemini 2.0 Flash endpoints
-  - OpenAI GPT-4o endpoints
-  - Perplexity Sonar Pro endpoints
-  - Notion integration endpoints
-  - Google Workspace endpoints
-
-**To deploy:** Merge `claude/explore-repo-structure-01J42U42ocCuPTXUpKCyAd38` to `main`
-
-### Railway Environment Variables
-Configure these in Railway dashboard:
-
-**Required:**
+### Railway Environment Variables (Current)
 ```
-ANTHROPIC_API_KEY=<your-key>
-```
-
-**For Full v2.0.0 Functionality:**
-```
-GEMINI_API_KEY=<your-key>
-OPENAI_API_KEY=<your-key>
-PERPLEXITY_API_KEY=<your-key>
-NOTION_API_KEY=<your-key>
-SUPABASE_URL=<your-url>
-SUPABASE_KEY=<your-key>
-MWD_INVOICE_SYSTEM_URL=<invoice-system-url>
-MWD_INVOICE_SYSTEM_API_KEY=<api-key>
-MWD_WEBHOOK_SECRET=<shared-secret>
+ANTHROPIC_API_KEY=✓ configured
+GEMINI_API_KEY=✓ configured
+OPENAI_API_KEY=✓ configured
+PERPLEXITY_API_KEY=✓ configured
+NOTION_API_KEY=✓ configured
+SUPABASE_URL=✓ configured
+SUPABASE_KEY=✓ configured
+MWD_INVOICE_SYSTEM_URL=✓ configured
+MWD_INVOICE_SYSTEM_API_KEY=✓ configured
+MWD_WEBHOOK_SECRET=✓ configured
+SLACK_BOT_TOKEN=✗ invalid (needs fresh token)
+SLACK_SIGNING_SECRET=✓ configured
 ```
 
-**For Google Workspace (requires service account JSON):**
-```
-GOOGLE_CLOUD_PROJECT=<project-id>
-GOOGLE_CREDENTIALS_PATH=/app/credentials.json
-```
-Note: Upload credentials.json to Railway or use secrets management
+---
+
+## Next Steps (Priority Order)
+
+1. **Fix Slack bot token** - Reinstall Slack app and get fresh xoxb- token
+2. **Run Supabase schema** - Execute docs/SUPABASE_SCHEMA.sql
+3. **Configure Slack Events URL** - Set to https://mwd-agent.railway.app/slack/events
+4. **Test conversational bot** - Message @mwd-agent in Slack
+5. **Add production server** - Switch from Flask dev server to Gunicorn
 
 ---
 
 ## Recent Changes
+
+### November 21, 2025 - v2.1.0
+- Added conversational Slack bot with Gemini orchestrator
+- Added Slack event endpoints (/slack/events, /slack/interact)
+- Added Supabase schema for conversations, projects, usage tracking
+- Fixed is_configured() to properly detect auth failures
+- Added google-api-python-client to requirements.txt
 
 ### November 20, 2025 - v2.0.0
 - Added multi-AI orchestration (Gemini, OpenAI, Perplexity)

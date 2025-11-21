@@ -63,6 +63,7 @@ class SlackBot:
         return (SLACK_SDK_AVAILABLE and
                 bool(self.bot_token) and
                 self.client is not None and
+                self.bot_user_id is not None and  # Ensures auth succeeded
                 self.gemini_client is not None)
 
     def verify_request(self, timestamp: str, signature: str, body: bytes) -> bool:
