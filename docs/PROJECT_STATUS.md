@@ -161,7 +161,53 @@ MWD_WEBHOOK_SECRET
 
 **Platform:** Railway
 **URL:** https://mwd-agent.railway.app
-**Branch:** main (deploy from feature branches via merge)
+**Branch:** main
+
+### Currently Deployed (main branch)
+- Core Flask application
+- Claude strategy endpoints (/branding, /website, /social, /copywriting)
+- Invoice System webhooks (/api/intake, /api/project/status)
+- Basic health check endpoint
+
+### Pending Deployment (merge required)
+The following features are on the feature branch and need to be merged to main:
+
+- **v2.0.0 Multi-AI Orchestration**
+  - Gemini 2.0 Flash endpoints
+  - OpenAI GPT-4o endpoints
+  - Perplexity Sonar Pro endpoints
+  - Notion integration endpoints
+  - Google Workspace endpoints
+
+**To deploy:** Merge `claude/explore-repo-structure-01J42U42ocCuPTXUpKCyAd38` to `main`
+
+### Railway Environment Variables
+Configure these in Railway dashboard:
+
+**Required:**
+```
+ANTHROPIC_API_KEY=<your-key>
+```
+
+**For Full v2.0.0 Functionality:**
+```
+GEMINI_API_KEY=<your-key>
+OPENAI_API_KEY=<your-key>
+PERPLEXITY_API_KEY=<your-key>
+NOTION_API_KEY=<your-key>
+SUPABASE_URL=<your-url>
+SUPABASE_KEY=<your-key>
+MWD_INVOICE_SYSTEM_URL=<invoice-system-url>
+MWD_INVOICE_SYSTEM_API_KEY=<api-key>
+MWD_WEBHOOK_SECRET=<shared-secret>
+```
+
+**For Google Workspace (requires service account JSON):**
+```
+GOOGLE_CLOUD_PROJECT=<project-id>
+GOOGLE_CREDENTIALS_PATH=/app/credentials.json
+```
+Note: Upload credentials.json to Railway or use secrets management
 
 ---
 
