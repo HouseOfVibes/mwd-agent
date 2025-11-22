@@ -198,7 +198,8 @@ def home():
             'notion': [
                 'POST /notion/project',
                 'POST /notion/meeting-notes',
-                'GET /notion/search'
+                'GET /notion/search',
+                'POST /notion/client-portal'
             ],
             'google': [
                 'POST /google/drive/folder',
@@ -438,6 +439,30 @@ def notion_update_status():
     status = data.get('status', '')
     notes = data.get('notes', '')
     result = notion_client.update_project_status(page_id, status, notes)
+    return jsonify(result)
+
+
+@app.route('/notion/client-portal', methods=['POST'])
+def notion_client_portal():
+    """Create a comprehensive client portal in Notion"""
+    data = request.json
+    parent_page_id = data.get('parent_page_id', os.getenv('NOTION_PORTALS_PAGE', ''))
+
+    if not parent_page_id:
+        return jsonify({'success': False, 'error': 'parent_page_id is required or set NOTION_PORTALS_PAGE env var'}), 400
+
+    client_data = {
+        'company_name': data.get('company_name', 'New Client'),
+        'contact_name': data.get('contact_name', ''),
+        'contact_email': data.get('contact_email', ''),
+        'services': data.get('services', []),
+        'industry': data.get('industry', ''),
+        'project_timeline': data.get('project_timeline', ''),
+        'budget': data.get('budget', ''),
+        'goals': data.get('goals', '')
+    }
+
+    result = notion_client.create_client_portal(parent_page_id, client_data)
     return jsonify(result)
 
 
@@ -688,6 +713,50 @@ def slack_interact():
                 slack_bot._send_message(
                     channel,
                     f"*Project Folder Created* 📁\n\nProject: {project_name}\nFolder ID: {result.get('folder_id', 'N/A')}"
+                )
+
+        elif callback_id == 'modal_client_portal':
+            # Create client portal in Notion
+            client_data = {}
+            for block_id, block_values in values.items():
+                for input_id, input_data in block_values.items():
+                    value = input_data.get('value') or input_data.get('selected_option', {}).get('value', '')
+                    client_data[block_id] = value
+
+            # Parse services from comma-separated string
+            services_str = client_data.get('services', '')
+            services = [s.strip() for s in services_str.split(',') if s.strip()]
+
+            portal_data = {
+                'company_name': client_data.get('company_name', 'New Client'),
+                'contact_name': client_data.get('contact_name', ''),
+                'contact_email': client_data.get('contact_email', ''),
+                'industry': client_data.get('industry', ''),
+                'services': services,
+                'project_timeline': client_data.get('project_timeline', ''),
+                'goals': client_data.get('goals', '')
+            }
+
+            parent_page_id = os.getenv('NOTION_PORTALS_PAGE', '')
+            if parent_page_id:
+                result = notion_client.create_client_portal(parent_page_id, portal_data)
+                if result.get('success') and channel:
+                    slack_bot._send_message(
+                        channel,
+                        f"*Client Portal Created* 🏢\n\n"
+                        f"Company: {portal_data['company_name']}\n"
+                        f"Pages Created: {result.get('pages_created', 0)}\n"
+                        f"Portal URL: {result.get('portal_url', 'N/A')}"
+                    )
+                elif channel:
+                    slack_bot._send_message(
+                        channel,
+                        f"Failed to create portal: {result.get('error', 'Unknown error')}"
+                    )
+            elif channel:
+                slack_bot._send_message(
+                    channel,
+                    "NOTION_PORTALS_PAGE environment variable not set. Please configure it first."
                 )
 
     return jsonify({'ok': True})

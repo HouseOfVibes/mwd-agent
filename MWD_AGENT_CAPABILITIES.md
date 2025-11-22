@@ -68,6 +68,7 @@ A comprehensive list of everything the MWD Agent can do.
 - Search workspace
 - Query databases with filters
 - Update project status
+- **Build Client Portals** - Comprehensive portals with service-specific pages, timeline, deliverables, and communication sections
 
 ### Google Workspace
 - **Drive** - create folders, organize projects, share files
@@ -124,7 +125,7 @@ A comprehensive list of everything the MWD Agent can do.
 | Gemini | 3 | `/ai/gemini/meeting-notes`, `/summarize`, `/orchestrate` |
 | OpenAI | 4 | `/ai/openai/team-message`, `/slack-message`, `/summarize-thread`, `/analyze-feedback` |
 | Perplexity | 5 | `/ai/perplexity/research`, `/industry`, `/competitors`, `/client-email`, `/market-data` |
-| Notion | 5 | `/notion/project`, `/meeting-notes`, `/search`, `/database/query`, `/page/status` |
+| Notion | 6 | `/notion/project`, `/meeting-notes`, `/search`, `/database/query`, `/page/status`, `/client-portal` |
 | Google | 6 | `/google/drive/folder`, `/project-structure`, `/files`, `/share`, `/docs/document`, `/deliverable` |
 | Slack | 5 | `/slack/events`, `/slack/interact`, `/slack/reminders`, `/slack/digest`, `/slack/quick-actions` |
 | Webhooks | 2 | `/api/intake`, `/api/project/status` |
@@ -156,3 +157,4 @@ The MWD Agent is a **multi-AI orchestration platform** that can:
 - **Generate activity digests** (daily and weekly)
 - **Provide quick action buttons** for common tasks
 - **Process file uploads** with intelligent suggestions
+- **Build client portals** in Notion with service-specific pages

@@ -484,6 +484,23 @@ class SlackFeatures:
                         "value": "competitors"
                     }
                 ]
+            },
+            {
+                "type": "actions",
+                "block_id": "quick_actions_row_4",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "🏢 Build Client Portal",
+                            "emoji": True
+                        },
+                        "style": "primary",
+                        "action_id": "quick_client_portal",
+                        "value": "client_portal"
+                    }
+                ]
             }
         ]
 
@@ -589,6 +606,19 @@ class SlackFeatures:
                     {'id': 'company', 'label': 'Your Company', 'type': 'text'},
                     {'id': 'competitors', 'label': 'Competitors (comma-separated)', 'type': 'text'},
                     {'id': 'industry', 'label': 'Industry', 'type': 'text'}
+                ]
+            },
+            'quick_client_portal': {
+                'title': 'Build Client Portal',
+                'callback_id': 'modal_client_portal',
+                'fields': [
+                    {'id': 'company_name', 'label': 'Company Name', 'type': 'text'},
+                    {'id': 'contact_name', 'label': 'Contact Name', 'type': 'text'},
+                    {'id': 'contact_email', 'label': 'Contact Email', 'type': 'text'},
+                    {'id': 'industry', 'label': 'Industry', 'type': 'text'},
+                    {'id': 'services', 'label': 'Services (comma-separated: branding, website, social, copywriting)', 'type': 'text'},
+                    {'id': 'project_timeline', 'label': 'Project Timeline', 'type': 'text'},
+                    {'id': 'goals', 'label': 'Goals & Objectives', 'type': 'textarea'}
                 ]
             }
         }
