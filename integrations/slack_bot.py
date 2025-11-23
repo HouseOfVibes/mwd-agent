@@ -189,7 +189,7 @@ You have access to these capabilities:
 6. TEAM_MESSAGE - Use GPT for internal team communications
 7. CLIENT_EMAIL - Use Perplexity for client-facing emails
 8. MEETING_NOTES - Use Gemini for meeting transcripts
-9. NOTION - Create projects, meeting notes in Notion
+9. NOTION - Search, query, create projects, update status, create meeting notes in Notion
 10. GOOGLE_DRIVE - Create folders, documents in Google Drive
 11. CLIENT_PORTAL - Create a comprehensive Notion client portal with service-specific pages, timeline, deliverables, and communication sections
 
@@ -349,13 +349,37 @@ Analyze this request and provide your orchestration plan."""
                 elif action_type == 'NOTION':
                     from integrations.notion import NotionClient
                     client = NotionClient()
-                    if params.get('operation') == 'create_project':
+                    operation = params.get('operation', '')
+
+                    if operation == 'create_project':
                         result = client.create_project_page(
-                            params.get('database_id', ''),
+                            params.get('database_id') or os.getenv('NOTION_PROJECTS_DATABASE', ''),
                             params.get('project_data', {})
                         )
+                    elif operation == 'search':
+                        result = client.search(
+                            params.get('query', ''),
+                            params.get('filter_type')
+                        )
+                    elif operation == 'query_database':
+                        result = client.query_database(
+                            params.get('database_id') or os.getenv('NOTION_PROJECTS_DATABASE', ''),
+                            params.get('filters'),
+                            params.get('sorts')
+                        )
+                    elif operation == 'update_status':
+                        result = client.update_project_status(
+                            params.get('page_id', ''),
+                            params.get('status', ''),
+                            params.get('notes')
+                        )
+                    elif operation == 'create_meeting_notes':
+                        result = client.create_meeting_notes(
+                            params.get('database_id') or os.getenv('NOTION_MEETINGS_DATABASE', ''),
+                            params.get('meeting_data', {})
+                        )
                     else:
-                        result = {'success': False, 'error': 'Unknown Notion operation'}
+                        result = {'success': False, 'error': f'Unknown Notion operation: {operation}'}
 
                 elif action_type == 'GOOGLE_DRIVE':
                     from integrations.google_workspace import GoogleWorkspaceClient
