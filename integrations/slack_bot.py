@@ -465,13 +465,27 @@ Subject: [subject line]
                     elif operation == 'search':
                         result = client.search(
                             params.get('query', ''),
-                            params.get('filter_type')
+                            params.get('filter_type'),
+                            params.get('page_size', 100),
+                            params.get('start_cursor')
+                        )
+                    elif operation == 'search_all':
+                        result = client.search_all(
+                            params.get('query', ''),
+                            params.get('filter_type'),
+                            params.get('max_results', 500)
                         )
                     elif operation == 'query_database':
                         result = client.query_database(
                             params.get('database_id') or os.getenv('NOTION_PROJECTS_DATABASE', ''),
                             params.get('filters'),
-                            params.get('sorts')
+                            params.get('sorts'),
+                            params.get('page_size', 100),
+                            params.get('start_cursor')
+                        )
+                    elif operation == 'get_database_schema':
+                        result = client.get_database_schema(
+                            params.get('database_id') or os.getenv('NOTION_PROJECTS_DATABASE', '')
                         )
                     elif operation == 'update_status':
                         result = client.update_project_status(
@@ -486,8 +500,13 @@ Subject: [subject line]
                         )
                     elif operation == 'workspace_overview':
                         result = client.workspace_overview()
+                    elif operation == 'create_client_portal':
+                        result = client.create_client_portal(
+                            params.get('parent_page_id', ''),
+                            params.get('client_data', {})
+                        )
                     else:
-                        result = {'success': False, 'error': f'Unknown Notion operation: {operation}'}
+                        result = {'success': False, 'error': f'Unknown Notion operation: {operation}. Available: create_project, search, search_all, query_database, get_database_schema, update_status, create_meeting_notes, workspace_overview, create_client_portal'}
 
                 elif action_type == 'GOOGLE_DRIVE':
                     from integrations.google_workspace import GoogleWorkspaceClient
