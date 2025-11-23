@@ -453,8 +453,8 @@ class NotionClient:
             return {'success': False, 'error': 'Notion client not configured'}
 
         try:
-            # Get all databases
-            db_response = self.client.search(filter={'property': 'object', 'value': 'database'})
+            # Get all databases (Notion API uses 'data_source' for databases)
+            db_response = self.client.search(filter={'property': 'object', 'value': 'data_source'})
             databases = []
             for db in db_response['results']:
                 title_list = db.get('title', [])
