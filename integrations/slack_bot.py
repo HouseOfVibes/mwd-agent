@@ -402,6 +402,39 @@ Analyze this request and provide your orchestration plan."""
                         params.get('tone', 'professional')
                     )
 
+                    # Fallback to Gemini if OpenAI fails
+                    if not result.get('success'):
+                        logger.info("OpenAI failed, falling back to Gemini for team message")
+                        context = params.get('context', '')
+                        message_type = params.get('message_type', 'update')
+                        tone = params.get('tone', 'professional')
+
+                        prompt = f"""Draft an internal team {message_type} message.
+Tone: {tone}
+Context: {context}
+
+Create a well-structured message with:
+1. Clear subject line
+2. Gets to the point quickly
+3. Any necessary action items
+4. Clear next steps
+
+Format:
+Subject: [subject line]
+
+[message body]"""
+
+                        response = self.gemini_client.models.generate_content(
+                            model='gemini-2.0-flash-exp',
+                            contents=prompt
+                        )
+                        result = {
+                            'success': True,
+                            'response': response.text,
+                            'model': 'gemini-2.0-flash-exp (fallback)',
+                            'message_type': message_type
+                        }
+
                 elif action_type == 'CLIENT_EMAIL':
                     from integrations.perplexity import PerplexityClient
                     client = PerplexityClient()
