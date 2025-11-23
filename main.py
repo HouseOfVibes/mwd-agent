@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-MWD Agent - Marketing Website Design Agent
-Handles branding, website design, social media, and copywriting workflows
+MWD Assistant - Internal AI Assistant for MW Design Studio
+Handles branding, website design, social media, copywriting, and workspace management
 """
 
 import os
@@ -174,7 +174,7 @@ def home():
     config = check_config()
     return jsonify({
         'status': 'running',
-        'service': 'MWD Agent',
+        'service': 'MWD Assistant',
         'version': '2.1.0',
         'config': config,
         'endpoints': {
@@ -1004,7 +1004,7 @@ def receive_project_status():
 
 if __name__ == '__main__':
     print("\n" + "="*50)
-    print("MWD Agent v2.1.0 starting on port 8080")
+    print("MWD Assistant v2.1.0 starting on port 8080")
     print("="*50)
 
     config = check_config()

@@ -1,11 +1,11 @@
 # Slack Bot Setup Guide
 
-This guide walks you through setting up the MWD Agent Slack bot for your workspace.
+This guide walks you through setting up the MWD Assistant Slack bot for your workspace.
 
 ## Prerequisites
 
 - A Slack workspace where you have admin permissions
-- The MWD Agent application deployed and accessible via a public URL
+- The MWD Assistant application deployed and accessible via a public URL
 - Access to environment variables configuration
 
 ## Step 1: Create a Slack App
@@ -14,7 +14,7 @@ This guide walks you through setting up the MWD Agent Slack bot for your workspa
 2. Click **Create New App**
 3. Choose **From scratch**
 4. Enter:
-   - **App Name**: `MWD Agent` (or your preferred name)
+   - **App Name**: `MWD Assistant` (or your preferred name)
    - **Workspace**: Select your workspace
 5. Click **Create App**
 
@@ -111,9 +111,9 @@ To get a channel ID:
 
 ### Test Basic Messaging
 
-1. Start your MWD Agent server
-2. Invite the bot to a channel: `/invite @MWD Agent`
-3. Mention the bot: `@MWD Agent hello`
+1. Start your MWD Assistant server
+2. Invite the bot to a channel: `/invite @MWD Assistant`
+3. Mention the bot: `@MWD Assistant hello`
 4. You should see:
    - A thinking emoji reaction appear
    - A response message
@@ -242,5 +242,5 @@ After setup is complete:
 ## Support
 
 For issues with this integration:
-- Check the [MWD Agent Repository](https://github.com/HouseOfVibes/mwd-agent)
+- Check the [MWD Assistant Repository](https://github.com/HouseOfVibes/mwd-agent)
 - Review the `integrations/slack_bot.py` and `integrations/slack_features.py` files

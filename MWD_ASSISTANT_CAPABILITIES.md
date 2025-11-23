@@ -1,6 +1,6 @@
-# MWD Agent Capabilities
+# MWD Assistant Capabilities
 
-A comprehensive list of everything the MWD Agent can do.
+A comprehensive list of everything the MWD Assistant can do.
 
 ## AI Models Integrated
 
@@ -144,7 +144,7 @@ A comprehensive list of everything the MWD Agent can do.
 
 ## Summary
 
-The MWD Agent is a **multi-AI orchestration platform** that can:
+The MWD Assistant is a **multi-AI orchestration platform** that can:
 - Generate strategic deliverables for client projects
 - Research topics, industries, and competitors
 - Draft communications for teams and clients

@@ -1,14 +1,14 @@
-# MWD Agent ↔ Invoice System Integration Specification
+# MWD Assistant ↔ Invoice System Integration Specification
 
 **Version:** 1.0
 **Date:** November 15, 2025
-**Purpose:** Define bi-directional communication between MWD Agent and MWD Invoice System
+**Purpose:** Define bi-directional communication between MWD Assistant and MWD Invoice System
 
 ---
 
 ## Overview
 
-The MWD Agent and MWD Invoice System need to communicate in both directions:
+The MWD Assistant and MWD Invoice System need to communicate in both directions:
 
 - **Invoice System → Agent**: Send client intake data to trigger AI workflows
 - **Agent → Invoice System**: Send AI-generated deliverables, create leads, update project status
@@ -299,7 +299,7 @@ Authorization: Bearer <shared_secret_token>
 
 ---
 
-## 2. Changes Needed in MWD Agent
+## 2. Changes Needed in MWD Assistant
 
 ### A. New API Endpoints (Agent Must Accept)
 
@@ -574,7 +574,7 @@ CREATE TABLE webhook_logs (
 );
 ```
 
-### MWD Agent - New Tables
+### MWD Assistant - New Tables
 
 **Supabase `projects` table:**
 ```sql
@@ -702,7 +702,7 @@ CREATE TABLE projects (
 7. ✅ API authentication tokens
 8. ✅ Webhook HMAC signature generation
 
-### MWD Agent Must Provide:
+### MWD Assistant Must Provide:
 
 1. ✅ Endpoint to receive intake webhooks → `POST /api/intake`
 2. ✅ Endpoint to receive status webhooks → `POST /api/project/status`

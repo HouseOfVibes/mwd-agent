@@ -1,6 +1,6 @@
 """
 Slack Bot Integration with Gemini Orchestrator
-Conversational interface to MWD Agent
+Conversational interface to MWD Assistant
 """
 
 import os
@@ -176,47 +176,120 @@ class SlackBot:
             for msg in history[-10:]  # Last 10 messages for context
         ])
 
-        # System prompt for Gemini orchestrator
-        system_prompt = """You are the MWD Agent orchestrator for a marketing agency.
-You help users with branding, website design, social media, copywriting, research, and project management.
+        # System prompt for MWD Assistant
+        system_prompt = """You are the MWD Assistant - the internal AI assistant for MW Design Studio.
 
-You have access to these capabilities:
-1. RESEARCH - Use Perplexity for industry research, competitor analysis, market data
-2. BRANDING - Use Claude for brand strategy, identity, positioning
-3. WEBSITE - Use Claude for website strategy and planning
-4. SOCIAL - Use Claude for social media strategy
-5. COPYWRITING - Use Claude for marketing copy
-6. TEAM_MESSAGE - Use GPT for internal team communications
-7. CLIENT_EMAIL - Use Perplexity for client-facing emails
-8. MEETING_NOTES - Use Gemini for meeting transcripts
-9. NOTION - Create projects, meeting notes in Notion
-10. GOOGLE_DRIVE - Create folders, documents in Google Drive
-11. CLIENT_PORTAL - Create a comprehensive Notion client portal with service-specific pages, timeline, deliverables, and communication sections
+## About MW Design Studio
+MW Design Studio was founded by Sheri McDowell and Tierra White to empower small businesses with big ideas.
+Mission: Help businesses look professional, feel authentic, and grow sustainably.
 
-Based on the user's request, determine:
-1. What action(s) need to be taken
-2. What information is needed
-3. What the response should include
+## The Team
 
-Respond with a JSON object:
+**Sheri McDowell** - Co-Founder
+- Expertise: Brand strategy, visual design, identity systems
+- Handles: Branding projects, logo design, brand guidelines, website design
+- Style: Strategic, detail-oriented, design-focused
+
+**Tierra White** - Co-Founder
+- Expertise: Marketing, photography, social media, content creation
+- Handles: Social media strategy, content creation, photography, marketing campaigns
+- Style: Creative, community-focused, storytelling
+
+## Services & Pricing
+
+**Branding** (from $750)
+- Logo design & brand identity
+- Color palette & typography
+- Brand guidelines
+- Social media assets
+- Voice & messaging framework
+
+**Website Design** (custom quote)
+- Responsive, hand-coded sites
+- User journey optimization
+- SEO-friendly structure
+- Reliable hosting included
+- Conversion-focused design
+
+**Social Media** (from $350)
+- Platform strategy
+- Content creation
+- Community management
+- Scheduling & analytics
+- Engagement strategies
+
+**Content Creation**
+- Copywriting (from $250): Brand storytelling, website copy, email sequences
+- Photography (from $200): Brand photos, product shots, lifestyle imagery
+
+**Automation Systems** (from $500)
+- Lead nurturing workflows
+- Appointment scheduling
+- Email automation
+- CRM setup
+- Operations streamlining
+
+## Your Role
+You're the team's helpful assistant. You can chat naturally, answer questions, give advice, and execute tasks.
+Be casual yet professional - you're talking to teammates (Sheri and Tierra), not clients.
+Be proactive and helpful. If you can answer something directly, do it. Only use tools when actually needed.
+Know who handles what - route questions to the right person when needed.
+
+## Your Capabilities
+
+**AI-Powered Tools:**
+1. RESEARCH - Deep industry research, competitor analysis, market trends (via Perplexity)
+2. BRANDING - Brand strategy, positioning, identity concepts (via Claude)
+3. WEBSITE - Website strategy, UX recommendations, site planning (via Claude)
+4. SOCIAL - Social media strategy, content calendars, platform recommendations (via Claude)
+5. COPYWRITING - Marketing copy, taglines, messaging (via Claude)
+6. CLIENT_EMAIL - Draft professional client emails (via Perplexity)
+7. MEETING_NOTES - Process and summarize meeting transcripts (via Gemini)
+
+**Workspace Tools:**
+8. NOTION - Search workspace, get overview, query databases, create/update projects, meeting notes
+9. GOOGLE_DRIVE - Create folders, project structures, documents
+10. CLIENT_PORTAL - Build comprehensive Notion portals for clients
+
+**Communication:**
+11. TEAM_MESSAGE - Draft internal team messages (via GPT)
+
+## How to Respond
+
+**For general questions, advice, or conversation:**
+Respond directly! You know about design, marketing, project management, client relations. Share your knowledge.
+
+**For tasks that need tools:**
+Use the appropriate action(s) to get real data or create things.
+
+**Response Format:**
+
+If you can answer directly (questions, advice, chat, explanations):
 {
-    "understanding": "Brief summary of what user wants",
+    "understanding": "What they're asking/saying",
+    "actions": [],
+    "direct_response": "Your helpful, conversational response. Be natural and informative."
+}
+
+If you need to use tools:
+{
+    "understanding": "What they want to accomplish",
     "actions": [
         {
             "type": "ACTION_TYPE",
-            "params": {},
-            "reason": "Why this action"
+            "params": {"key": "value"},
+            "reason": "Why this helps"
         }
     ],
-    "response_plan": "How to format the final response"
+    "response_plan": "How to present the results"
 }
 
-If the request is conversational (greeting, thanks, clarification), respond with:
-{
-    "understanding": "Conversational",
-    "actions": [],
-    "direct_response": "Your conversational response here"
-}
+## Important Notes
+- Be conversational and helpful, not robotic
+- Answer questions directly when you can - don't always reach for tools
+- For Notion operations, include the specific operation in params: "operation": "workspace_overview" / "search" / "query_database" etc.
+- When unsure, ask clarifying questions
+- Remember you're helping the MWD team manage their work and clients
 """
 
         prompt = f"""Previous conversation:
@@ -329,6 +402,39 @@ Analyze this request and provide your orchestration plan."""
                         params.get('tone', 'professional')
                     )
 
+                    # Fallback to Gemini if OpenAI fails
+                    if not result.get('success'):
+                        logger.info("OpenAI failed, falling back to Gemini for team message")
+                        context = params.get('context', '')
+                        message_type = params.get('message_type', 'update')
+                        tone = params.get('tone', 'professional')
+
+                        prompt = f"""Draft an internal team {message_type} message.
+Tone: {tone}
+Context: {context}
+
+Create a well-structured message with:
+1. Clear subject line
+2. Gets to the point quickly
+3. Any necessary action items
+4. Clear next steps
+
+Format:
+Subject: [subject line]
+
+[message body]"""
+
+                        response = self.gemini_client.models.generate_content(
+                            model='gemini-2.0-flash-exp',
+                            contents=prompt
+                        )
+                        result = {
+                            'success': True,
+                            'response': response.text,
+                            'model': 'gemini-2.0-flash-exp (fallback)',
+                            'message_type': message_type
+                        }
+
                 elif action_type == 'CLIENT_EMAIL':
                     from integrations.perplexity import PerplexityClient
                     client = PerplexityClient()
@@ -349,13 +455,39 @@ Analyze this request and provide your orchestration plan."""
                 elif action_type == 'NOTION':
                     from integrations.notion import NotionClient
                     client = NotionClient()
-                    if params.get('operation') == 'create_project':
+                    operation = params.get('operation', '')
+
+                    if operation == 'create_project':
                         result = client.create_project_page(
-                            params.get('database_id', ''),
+                            params.get('database_id') or os.getenv('NOTION_PROJECTS_DATABASE', ''),
                             params.get('project_data', {})
                         )
+                    elif operation == 'search':
+                        result = client.search(
+                            params.get('query', ''),
+                            params.get('filter_type')
+                        )
+                    elif operation == 'query_database':
+                        result = client.query_database(
+                            params.get('database_id') or os.getenv('NOTION_PROJECTS_DATABASE', ''),
+                            params.get('filters'),
+                            params.get('sorts')
+                        )
+                    elif operation == 'update_status':
+                        result = client.update_project_status(
+                            params.get('page_id', ''),
+                            params.get('status', ''),
+                            params.get('notes')
+                        )
+                    elif operation == 'create_meeting_notes':
+                        result = client.create_meeting_notes(
+                            params.get('database_id') or os.getenv('NOTION_MEETINGS_DATABASE', ''),
+                            params.get('meeting_data', {})
+                        )
+                    elif operation == 'workspace_overview':
+                        result = client.workspace_overview()
                     else:
-                        result = {'success': False, 'error': 'Unknown Notion operation'}
+                        result = {'success': False, 'error': f'Unknown Notion operation: {operation}'}
 
                 elif action_type == 'GOOGLE_DRIVE':
                     from integrations.google_workspace import GoogleWorkspaceClient

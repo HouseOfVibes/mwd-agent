@@ -22,7 +22,7 @@ except ImportError:
 
 
 class SlackFeatures:
-    """Extended Slack features for MWD Agent"""
+    """Extended Slack features for MWD Assistant"""
 
     def __init__(self, slack_client: WebClient = None, notion_client=None,
                  gemini_client=None, supabase_client=None):

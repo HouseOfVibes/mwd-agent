@@ -1,4 +1,4 @@
-# MWD Agent - Project Status
+# MWD Assistant - Project Status
 
 **Last Updated:** November 21, 2025
 **Current Version:** 2.1.0
