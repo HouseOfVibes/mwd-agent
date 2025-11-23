@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test script for MWD Agent
+Test script for MWD Assistant
 Tests all endpoints with sample client data
 """
 
@@ -78,7 +78,7 @@ def test_endpoint(endpoint_name, endpoint_path, client_data):
 
 def main():
     print("\n" + "="*60)
-    print("🧪 MWD Agent - Test Suite")
+    print("🧪 MWD Assistant - Test Suite")
     print("="*60)
     print(f"\nTarget: {BASE_URL}")
     print(f"\nClient: {SAMPLE_CLIENT['company_name']}")

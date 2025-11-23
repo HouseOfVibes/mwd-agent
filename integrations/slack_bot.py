@@ -1,6 +1,6 @@
 """
 Slack Bot Integration with Gemini Orchestrator
-Conversational interface to MWD Agent
+Conversational interface to MWD Assistant
 """
 
 import os

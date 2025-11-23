@@ -2,7 +2,7 @@
 
 ## Overview
 
-The MWD Agent uses MCP servers to enable multi-AI coordination and workspace integration. MCP provides a standardized way for AI models to access tools, data, and functionality.
+The MWD Assistant uses MCP servers to enable multi-AI coordination and workspace integration. MCP provides a standardized way for AI models to access tools, data, and functionality.
 
 ## Architecture
 
@@ -215,7 +215,7 @@ commits = client.call_tool("get_commit_history", {
 })
 ```
 
-## Integration with MWD Agent
+## Integration with MWD Assistant
 
 ### Multi-AI Workflow Example
 

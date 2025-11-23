@@ -1,14 +1,14 @@
-# API Integration Guide - MWD Agent
+# API Integration Guide - MWD Assistant
 
 **Last Updated:** November 2025
 
-This guide provides the latest best practices for integrating all AI APIs used in the MWD Agent system.
+This guide provides the latest best practices for integrating all AI APIs used in the MWD Assistant system.
 
 ---
 
 ## Overview
 
-The MWD Agent uses a multi-AI architecture with specialized roles:
+The MWD Assistant uses a multi-AI architecture with specialized roles:
 
 | AI Provider | Role | Model | SDK Package |
 |-------------|------|-------|-------------|

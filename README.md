@@ -1,13 +1,13 @@
-# MWD Agent
+# MWD Assistant
 
-> AI-Powered Workspace Management Agent for MW Design Studio
+> AI-Powered Internal Assistant for MW Design Studio
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Flask](https://img.shields.io/badge/flask-3.1.2-green.svg)](https://flask.palletsprojects.com/)
 [![MCP](https://img.shields.io/badge/MCP-1.21.1-purple.svg)](https://modelcontextprotocol.io/)
 
-An intelligent multi-AI agent system that automates business workflows across branding, website design, social media strategy, copywriting, and workspace management. Integrates with Notion, Google Workspace, Slack, and the MWD Invoice System.
+Your team's intelligent assistant for managing clients, projects, and creative workflows. Chat naturally about branding, website design, social media strategy, copywriting, and workspace management. Integrates with Notion, Google Workspace, Slack, and the MWD Invoice System.
 
 ## ✨ What's New (November 2025)
 
@@ -101,7 +101,7 @@ An intelligent multi-AI agent system that automates business workflows across br
    # Edit .env with your API keys
    ```
 
-5. **Run the agent**
+5. **Run the assistant**
    ```bash
    python main.py
    ```
@@ -223,7 +223,7 @@ mwd-agent/
 
 ## 🔌 MCP (Model Context Protocol) Integration
 
-The MWD Agent uses MCP to enable standardized multi-AI coordination and tool access.
+The MWD Assistant uses MCP to enable standardized multi-AI coordination and tool access.
 
 ### Available MCP Servers
 
@@ -392,7 +392,7 @@ MIT License - see LICENSE file for details
 ## 📞 Support
 
 For issues related to:
-- **Agent functionality**: Open a GitHub issue
+- **Assistant functionality**: Open a GitHub issue
 - **Invoice System**: See [mwd-invoice-system](https://github.com/HouseOfVibes/mwd-invoice-system)
 - **Business inquiries**: Contact MW Design Studio
 

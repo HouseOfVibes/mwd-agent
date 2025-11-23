@@ -1,4 +1,4 @@
--- MWD Agent Supabase Schema
+-- MWD Assistant Supabase Schema
 -- Run this in your Supabase SQL editor to set up the database
 
 -- =============================================================================

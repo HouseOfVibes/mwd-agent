@@ -1,6 +1,6 @@
-# MWD Agent - Conversation History
+# MWD Assistant - Conversation History
 
-This folder contains screenshots documenting the complete planning and design process for the MWD Agent system.
+This folder contains screenshots documenting the complete planning and design process for the MWD Assistant system.
 
 ## Screenshots Overview
 
@@ -45,4 +45,4 @@ These screenshots capture conversations with Claude AI that led to the current a
 
 ---
 
-*These screenshots serve as the historical record of the MWD Agent's design evolution.*
+*These screenshots serve as the historical record of the MWD Assistant's design evolution.*

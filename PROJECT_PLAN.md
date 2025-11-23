@@ -1,4 +1,4 @@
-# MWD Agent - Project Plan
+# MWD Assistant - Project Plan
 **MW Design Studio AI Agent**
 
 **Version:** 1.0
@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-The MWD Agent is an intelligent AI-powered assistant designed to streamline MW Design Studio's business operations across multiple domains: branding, website design, social media strategy, copywriting, client communication, and workspace management.
+The MWD Assistant is an intelligent AI-powered assistant designed to streamline MW Design Studio's business operations across multiple domains: branding, website design, social media strategy, copywriting, client communication, and workspace management.
 
 ### Vision
 Create a centralized AI agent that integrates with the existing workspace tools (Notion, Slack, Google Workspace, Gemini, ChatGPT, Perplexity) to automate workflows, enhance productivity, and deliver consistent, high-quality output for client projects.
@@ -331,7 +331,7 @@ POST /multi-agent           - Orchestrate multiple AI models
    - Action items with owners
    - Decisions made
    - Follow-up questions
-3. MWD Agent receives Gemini output via webhook/API
+3. MWD Assistant receives Gemini output via webhook/API
 4. Agent structures notes and saves to Notion project page
 5. Agent extracts deliverables and deadlines → updates project timeline
 6. Agent creates Slack tasks for action items with @mentions
@@ -552,7 +552,7 @@ MW Design Studio
 ## Deployment Strategy (Railway)
 
 ### Why Railway?
-Railway is recommended for the MWD Agent deployment because:
+Railway is recommended for the MWD Assistant deployment because:
 1. **Easy Integration** - Your invoice system can also be hosted on Railway
 2. **Simple Setup** - Connect GitHub repo → Auto-deploy on push
 3. **Environment Variables** - Secure API key management
@@ -652,7 +652,7 @@ Total:           $70-300/month
 
 ### Infrastructure Costs
 ```
-Railway Agent:   $5-20/month    (MWD Agent service)
+Railway Agent:   $5-20/month    (MWD Assistant service)
 Railway Invoice: $10-25/month   (Invoice System - if not already hosted)
 Supabase:        $0-25/month    (Shared database - Free tier initially)
 Domain:          $15/year

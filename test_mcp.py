@@ -239,7 +239,7 @@ def main():
     """Run all MCP tests"""
     print("\n" + "🔌" * 30)
     print("  MCP (Model Context Protocol) Test Suite")
-    print("  MWD Agent - November 2025")
+    print("  MWD Assistant - November 2025")
     print("🔌" * 30)
 
     results = {

@@ -1,6 +1,6 @@
 """
 MWD Invoice System API Client
-Handles communication between MWD Agent and MWD Invoice System
+Handles communication between MWD Assistant and MWD Invoice System
 """
 
 import os
