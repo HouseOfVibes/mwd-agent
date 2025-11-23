@@ -230,36 +230,52 @@ class NotionClient:
             return {'success': False, 'error': str(e)}
 
     def query_database(self, database_id: str, filters: Dict = None,
-                      sorts: List[Dict] = None) -> Dict[str, Any]:
+                      sorts: List[Dict] = None, page_size: int = 100,
+                      start_cursor: str = None) -> Dict[str, Any]:
         """
         Query a Notion database
 
         Args:
             database_id: Database to query
-            filters: Filter conditions
-            sorts: Sort conditions
+            filters: Filter conditions (Notion filter object)
+            sorts: Sort conditions (list of sort objects)
+            page_size: Number of results per page (max 100)
+            start_cursor: Cursor for pagination
 
         Returns:
-            Query results
+            Query results with pagination info
         """
         if not self.is_configured():
             return {'success': False, 'error': 'Notion client not configured'}
 
         try:
-            query_params = {'database_id': database_id}
+            query_params = {'database_id': database_id, 'page_size': min(page_size, 100)}
 
             if filters:
                 query_params['filter'] = filters
             if sorts:
                 query_params['sorts'] = sorts
+            if start_cursor:
+                query_params['start_cursor'] = start_cursor
 
             response = self.client.databases.query(**query_params)
 
             results = []
             for page in response['results']:
+                # Extract title from properties
+                title = ''
+                props = page.get('properties', {})
+                for key in ['Name', 'Title', 'name', 'title']:
+                    if key in props:
+                        title_prop = props[key]
+                        if title_prop.get('title'):
+                            title = ''.join([t.get('plain_text', '') for t in title_prop['title']])
+                            break
+
                 results.append({
                     'id': page['id'],
                     'url': page['url'],
+                    'title': title,
                     'properties': page['properties'],
                     'created_time': page['created_time'],
                     'last_edited_time': page['last_edited_time']
@@ -269,10 +285,126 @@ class NotionClient:
                 'success': True,
                 'results': results,
                 'count': len(results),
-                'has_more': response.get('has_more', False)
+                'has_more': response.get('has_more', False),
+                'next_cursor': response.get('next_cursor')
             }
         except Exception as e:
             logger.error(f"Notion query database error: {e}")
+            return {'success': False, 'error': str(e)}
+
+    def search_all(self, query: str, filter_type: str = None, max_results: int = 500) -> Dict[str, Any]:
+        """
+        Search across Notion workspace and fetch all results (handles pagination automatically)
+
+        Args:
+            query: Search query
+            filter_type: Filter by 'page' or 'database'
+            max_results: Maximum number of results to return (default 500)
+
+        Returns:
+            All search results up to max_results
+        """
+        if not self.is_configured():
+            return {'success': False, 'error': 'Notion client not configured'}
+
+        all_results = []
+        next_cursor = None
+
+        try:
+            while len(all_results) < max_results:
+                response = self.search(
+                    query=query,
+                    filter_type=filter_type,
+                    page_size=100,
+                    start_cursor=next_cursor
+                )
+
+                if not response.get('success'):
+                    return response
+
+                all_results.extend(response.get('results', []))
+
+                if not response.get('has_more') or not response.get('next_cursor'):
+                    break
+
+                next_cursor = response['next_cursor']
+
+            # Trim to max_results
+            if len(all_results) > max_results:
+                all_results = all_results[:max_results]
+
+            return {
+                'success': True,
+                'results': all_results,
+                'count': len(all_results),
+                'truncated': len(all_results) >= max_results
+            }
+        except Exception as e:
+            logger.error(f"Notion search_all error: {e}")
+            return {'success': False, 'error': str(e)}
+
+    def get_database_schema(self, database_id: str) -> Dict[str, Any]:
+        """
+        Get the schema/properties of a Notion database
+
+        Args:
+            database_id: Database ID
+
+        Returns:
+            Database schema with property definitions
+        """
+        if not self.is_configured():
+            return {'success': False, 'error': 'Notion client not configured'}
+
+        try:
+            response = self.client.databases.retrieve(database_id=database_id)
+
+            # Extract property definitions
+            properties = {}
+            for prop_name, prop_def in response.get('properties', {}).items():
+                properties[prop_name] = {
+                    'id': prop_def.get('id'),
+                    'type': prop_def.get('type'),
+                    'name': prop_name
+                }
+
+                # Add type-specific info
+                prop_type = prop_def.get('type')
+                if prop_type == 'select':
+                    properties[prop_name]['options'] = [
+                        {'name': opt.get('name'), 'color': opt.get('color')}
+                        for opt in prop_def.get('select', {}).get('options', [])
+                    ]
+                elif prop_type == 'multi_select':
+                    properties[prop_name]['options'] = [
+                        {'name': opt.get('name'), 'color': opt.get('color')}
+                        for opt in prop_def.get('multi_select', {}).get('options', [])
+                    ]
+                elif prop_type == 'status':
+                    properties[prop_name]['options'] = [
+                        {'name': opt.get('name'), 'color': opt.get('color')}
+                        for opt in prop_def.get('status', {}).get('options', [])
+                    ]
+                    properties[prop_name]['groups'] = [
+                        {'name': grp.get('name'), 'color': grp.get('color')}
+                        for grp in prop_def.get('status', {}).get('groups', [])
+                    ]
+
+            # Extract title
+            title_list = response.get('title', [])
+            title = ''.join([t.get('plain_text', '') for t in title_list])
+
+            return {
+                'success': True,
+                'database_id': database_id,
+                'title': title,
+                'properties': properties,
+                'url': response.get('url', ''),
+                'created_time': response.get('created_time', ''),
+                'last_edited_time': response.get('last_edited_time', '')
+            }
+        except Exception as e:
+            logger.error(f"Notion get database schema error: {e}")
             return {'success': False, 'error': str(e)}
 
     def create_meeting_notes(self, database_id: str, meeting_data: Dict) -> Dict[str, Any]:
@@ -386,25 +518,40 @@ class NotionClient:
             logger.error(f"Notion create meeting notes error: {e}")
             return {'success': False, 'error': str(e)}
 
-    def search(self, query: str, filter_type: str = None) -> Dict[str, Any]:
+    def search(self, query: str, filter_type: str = None, page_size: int = 100, start_cursor: str = None) -> Dict[str, Any]:
         """
         Search across Notion workspace
 
         Args:
             query: Search query
-            filter_type: Filter by 'page' or 'database'
+            filter_type: Filter by 'page' or 'database' (mapped to 'data_source' for API compatibility)
+            page_size: Number of results per page (max 100)
+            start_cursor: Cursor for pagination
 
         Returns:
-            Search results
+            Search results with pagination info
         """
         if not self.is_configured():
             return {'success': False, 'error': 'Notion client not configured'}
 
         try:
-            search_params = {'query': query}
+            search_params = {'query': query, 'page_size': min(page_size, 100)}
+
+            if start_cursor:
+                search_params['start_cursor'] = start_cursor
 
             if filter_type:
-                search_params['filter'] = {'property': 'object', 'value': filter_type}
+                # Map 'database' to 'data_source' for Notion API 2025 compatibility
+                # Valid values: 'page' or 'data_source'
+                api_filter_value = filter_type
+                if filter_type.lower() == 'database':
+                    api_filter_value = 'data_source'
+                    logger.info("Mapped filter_type 'database' to 'data_source' for Notion API compatibility")
+                elif filter_type.lower() not in ['page', 'data_source']:
+                    logger.warning(f"Invalid filter_type '{filter_type}'. Valid values: 'page', 'database' (or 'data_source')")
+                    return {'success': False, 'error': f"Invalid filter_type '{filter_type}'. Use 'page' or 'database'."}
+
+                search_params['filter'] = {'property': 'object', 'value': api_filter_value}
 
             response = self.client.search(**search_params)
 
@@ -430,13 +577,16 @@ class NotionClient:
                     'type': item['object'],
                     'title': title,
                     'url': item.get('url', ''),
-                    'created_time': item['created_time']
+                    'created_time': item['created_time'],
+                    'last_edited_time': item.get('last_edited_time', '')
                 })
 
             return {
                 'success': True,
                 'results': results,
-                'count': len(results)
+                'count': len(results),
+                'has_more': response.get('has_more', False),
+                'next_cursor': response.get('next_cursor')
             }
         except Exception as e:
             logger.error(f"Notion search error: {e}")
@@ -453,8 +603,8 @@ class NotionClient:
             return {'success': False, 'error': 'Notion client not configured'}
 
         try:
-            # Get all databases
-            db_response = self.client.search(filter={'property': 'object', 'value': 'database'})
+            # Get all databases (Notion API uses 'data_source' for databases)
+            db_response = self.client.search(filter={'property': 'object', 'value': 'data_source'})
             databases = []
             for db in db_response['results']:
                 title_list = db.get('title', [])
