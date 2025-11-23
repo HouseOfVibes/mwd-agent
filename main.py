@@ -564,6 +564,30 @@ def slack_events():
     if event.get('bot_id') or event.get('subtype') == 'bot_message':
         return jsonify({'ok': True})
 
+    # Handle assistant thread events (Agent/Assistant view)
+    if event_type == 'assistant_thread_started':
+        assistant_thread = event.get('assistant_thread', {})
+        channel_id = assistant_thread.get('channel_id')
+        thread_ts = assistant_thread.get('thread_ts')
+
+        if channel_id and thread_ts:
+            # Set status to show we're processing
+            try:
+                slack_bot.client.assistant_threads_setStatus(
+                    channel_id=channel_id,
+                    thread_ts=thread_ts,
+                    status="Thinking..."
+                )
+            except Exception as e:
+                logger.error(f"Error setting assistant status: {e}")
+
+        return jsonify({'ok': True})
+
+    if event_type == 'assistant_thread_context_changed':
+        # Context changed - could be used to update bot behavior
+        # For now, just acknowledge
+        return jsonify({'ok': True})
+
     if event_type == 'app_mention' or event_type == 'message':
         # Only process direct messages or mentions
         channel_type = event.get('channel_type', '')
