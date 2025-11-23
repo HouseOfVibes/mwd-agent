@@ -39,15 +39,7 @@
                     "message": "Draft a client email for [project update/proposal/follow-up]"
                 }
             ]
-        },
-        "slash_commands": [
-            {
-                "command": "/mwd-quick-actions",
-                "description": "Open the quick actions menu",
-                "usage_hint": "[optional: action name]",
-                "should_escape": false
-            }
-        ]
+        }
     },
     "oauth_config": {
         "scopes": {
@@ -58,7 +50,6 @@
                 "channels:read",
                 "chat:write",
                 "chat:write.public",
-                "commands",
                 "files:read",
                 "files:write",
                 "groups:history",
