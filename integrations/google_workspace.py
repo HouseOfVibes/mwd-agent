@@ -5,6 +5,7 @@ Google Drive, Docs, Gmail for file management and communication
 
 import os
 import io
+import json
 import logging
 from typing import Dict, Any, List, Optional
 
@@ -28,6 +29,7 @@ class GoogleWorkspaceClient:
 
     def __init__(self):
         self.credentials_path = os.getenv('GOOGLE_CREDENTIALS_PATH', '')
+        self.credentials_json = os.getenv('GOOGLE_CREDENTIALS_JSON', '')
         self.project_id = os.getenv('GOOGLE_CLOUD_PROJECT', '')
 
         self.credentials = None
@@ -35,19 +37,35 @@ class GoogleWorkspaceClient:
         self.docs_service = None
         self.gmail_service = None
 
-        if GOOGLE_AVAILABLE and self.credentials_path and os.path.exists(self.credentials_path):
-            try:
-                self.credentials = service_account.Credentials.from_service_account_file(
-                    self.credentials_path,
-                    scopes=[
-                        'https://www.googleapis.com/auth/drive',
-                        'https://www.googleapis.com/auth/documents',
-                        'https://www.googleapis.com/auth/gmail.compose'
-                    ]
+        if not GOOGLE_AVAILABLE:
+            return
+
+        scopes = [
+            'https://www.googleapis.com/auth/drive',
+            'https://www.googleapis.com/auth/documents',
+            'https://www.googleapis.com/auth/gmail.compose'
+        ]
+
+        try:
+            # Option 1: Load from JSON string (for Railway/cloud deployment)
+            if self.credentials_json:
+                credentials_info = json.loads(self.credentials_json)
+                self.credentials = service_account.Credentials.from_service_account_info(
+                    credentials_info,
+                    scopes=scopes
                 )
                 self._init_services()
-            except Exception as e:
-                logger.error(f"Failed to initialize Google credentials: {e}")
+                logger.info("Google credentials loaded from GOOGLE_CREDENTIALS_JSON")
+            # Option 2: Load from file path (for local development)
+            elif self.credentials_path and os.path.exists(self.credentials_path):
+                self.credentials = service_account.Credentials.from_service_account_file(
+                    self.credentials_path,
+                    scopes=scopes
+                )
+                self._init_services()
+                logger.info("Google credentials loaded from GOOGLE_CREDENTIALS_PATH")
+        except Exception as e:
+            logger.error(f"Failed to initialize Google credentials: {e}")
 
     def _init_services(self):
         """Initialize Google API services"""
