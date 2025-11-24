@@ -1194,13 +1194,23 @@ class SlackFeatures:
         folder_name = f"{today} - {content_type}"
 
         try:
-            # Create the folder in the client's Drive folder
-            folder_result = self.google.create_folder(folder_name, drive_folder_id)
-            if not folder_result.get('success'):
-                raise Exception(f"Failed to create folder: {folder_result.get('error')}")
+            # Smart upload: Check if folder already exists for this content type today
+            existing_folder = self.google.find_folder_by_name(folder_name, drive_folder_id)
 
-            new_folder_id = folder_result.get('folder_id')
-            folder_url = folder_result.get('url', '')
+            if existing_folder.get('success'):
+                # Use existing folder
+                new_folder_id = existing_folder.get('folder_id')
+                folder_url = existing_folder.get('url', '')
+                logger.info(f"Using existing folder: {folder_name}")
+            else:
+                # Create new folder
+                folder_result = self.google.create_folder(folder_name, drive_folder_id)
+                if not folder_result.get('success'):
+                    raise Exception(f"Failed to create folder: {folder_result.get('error')}")
+
+                new_folder_id = folder_result.get('folder_id')
+                folder_url = folder_result.get('url', '')
+                logger.info(f"Created new folder: {folder_name}")
 
             # Download and upload each file
             uploaded_files = []
