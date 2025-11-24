@@ -25,6 +25,7 @@ Your team's intelligent assistant for managing clients, projects, and creative w
 
 - **AI-Powered Strategy Generation**: Branding, website design, social media, and copywriting deliverables
 - **Workspace Intelligence**: Gemini-powered meeting notes, Notion sync, and Google Drive organization
+- **Channel Uploads to Google Drive**: Automatically upload files from Slack channels to organized client folders in Google Drive with content type selection
 - **Multi-AI Orchestration**: Specialized AI routing (Gemini, Claude, ChatGPT, Perplexity)
 - **MCP Integration**: Model Context Protocol for standardized AI tool access and multi-agent coordination
 - **Persistent Memory**: Long-term memory storage across AI sessions for consistent client context
@@ -121,13 +122,17 @@ PERPLEXITY_API_KEY=your_perplexity_api_key_here
 
 # Integration APIs - Optional
 NOTION_API_KEY=your_notion_api_key_here
-SLACK_TOKEN=your_slack_token_here
+NOTION_CLIENT_PROFILES_DB=your_client_profiles_database_id
+SLACK_BOT_TOKEN=xoxb-your-bot-token
+SLACK_SIGNING_SECRET=your-signing-secret
 SUPABASE_URL=your_supabase_url_here
 SUPABASE_KEY=your_supabase_key_here
 
-# Google Cloud (Optional - for Vertex AI)
-GOOGLE_CLOUD_PROJECT=your_project_id
-GOOGLE_CLOUD_LOCATION=us-central1
+# Google Drive Integration (for channel uploads)
+# Use ONE of these - JSON is for Railway/cloud, PATH is for local development
+GOOGLE_CREDENTIALS_JSON={"type":"service_account",...}  # Full JSON content
+GOOGLE_CREDENTIALS_PATH=/path/to/service-account.json   # Or file path
+GOOGLE_CLIENT_FOLDERS_ID=your_client_folders_parent_id  # Parent folder for all clients
 
 # MCP (Model Context Protocol) Servers - Optional
 GITHUB_TOKEN=your_github_personal_access_token_here
