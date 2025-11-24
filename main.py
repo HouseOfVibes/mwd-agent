@@ -588,6 +588,20 @@ def slack_events():
         # For now, just acknowledge
         return jsonify({'ok': True})
 
+    if event_type == 'reaction_added':
+        # Handle reaction to move files to Drive
+        async def process_reaction():
+            await slack_features.handle_reaction_to_move(event)
+
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(process_reaction())
+        except Exception as e:
+            logger.error(f"Error processing reaction: {e}")
+
+        return jsonify({'ok': True})
+
     if event_type == 'app_mention' or event_type == 'message':
         # Only process direct messages or mentions
         channel_type = event.get('channel_type', '')

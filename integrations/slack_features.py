@@ -715,6 +715,104 @@ class SlackFeatures:
     # 4. FILE UPLOAD HANDLING & GOOGLE DRIVE INTEGRATION
     # =========================================================================
 
+    async def handle_reaction_to_move(self, event: Dict) -> Dict[str, Any]:
+        """
+        Handle reaction emoji to move files to Drive
+
+        When user adds 📁 reaction to a message with files,
+        trigger the Drive upload flow.
+
+        Args:
+            event: Slack reaction_added event
+
+        Returns:
+            Result of processing
+        """
+        if not self.client:
+            return {'success': False, 'error': 'Slack client not configured'}
+
+        reaction = event.get('reaction', '')
+        item = event.get('item', {})
+        channel_id = item.get('channel', '')
+        message_ts = item.get('ts', '')
+
+        # Only process 📁 (file_folder) or 📂 (open_file_folder) reactions
+        if reaction not in ['file_folder', 'open_file_folder']:
+            return {'success': False, 'error': 'Not a Drive upload reaction'}
+
+        try:
+            # Get the message that was reacted to
+            result = self.client.conversations_history(
+                channel=channel_id,
+                inclusive=True,
+                oldest=message_ts,
+                limit=1
+            )
+
+            messages = result.get('messages', [])
+            if not messages:
+                return {'success': False, 'error': 'Message not found'}
+
+            message = messages[0]
+            files = message.get('files', [])
+
+            if not files:
+                # No files in message
+                self.client.chat_postMessage(
+                    channel=channel_id,
+                    thread_ts=message_ts,
+                    text="No files found in this message to move to Drive."
+                )
+                return {'success': False, 'error': 'No files in message'}
+
+            # Check if this is a client channel
+            channel_name = self.get_channel_name(channel_id)
+            client_profile = None
+
+            if self.notion and self.client_profiles_db and channel_name:
+                client_profile = self.notion.get_client_profile_by_channel(
+                    self.client_profiles_db,
+                    channel_name
+                )
+
+            if not client_profile or not client_profile.get('success'):
+                # Not a client channel
+                self.client.chat_postMessage(
+                    channel=channel_id,
+                    thread_ts=message_ts,
+                    text="This channel isn't set up for Drive uploads. Only client channels can use this feature."
+                )
+                return {'success': False, 'error': 'Not a client channel'}
+
+            # Filter for media files
+            media_files = [
+                f for f in files
+                if f.get('filetype', '') in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'mov', 'webm', 'm4v']
+            ]
+
+            if not media_files:
+                self.client.chat_postMessage(
+                    channel=channel_id,
+                    thread_ts=message_ts,
+                    text="Only images and videos can be moved to Drive."
+                )
+                return {'success': False, 'error': 'No media files'}
+
+            # Create a synthetic event to trigger the upload flow
+            synthetic_event = {
+                'files': media_files,
+                'ts': message_ts,
+                'thread_ts': message_ts
+            }
+
+            return await self._handle_drive_upload_flow(
+                synthetic_event, channel_id, media_files, client_profile
+            )
+
+        except SlackApiError as e:
+            logger.error(f"Error handling reaction to move: {e}")
+            return {'success': False, 'error': str(e)}
+
     def get_channel_name(self, channel_id: str) -> str:
         """Get channel name from channel ID"""
         if not self.client:

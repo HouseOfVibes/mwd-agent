@@ -75,7 +75,8 @@
                 "file_shared",
                 "message.channels",
                 "message.groups",
-                "message.im"
+                "message.im",
+                "reaction_added"
             ]
         },
         "interactivity": {
