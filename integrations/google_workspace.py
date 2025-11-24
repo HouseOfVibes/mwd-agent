@@ -5,6 +5,7 @@ Google Drive, Docs, Gmail for file management and communication
 
 import os
 import io
+import json
 import logging
 from typing import Dict, Any, List, Optional
 
@@ -28,6 +29,7 @@ class GoogleWorkspaceClient:
 
     def __init__(self):
         self.credentials_path = os.getenv('GOOGLE_CREDENTIALS_PATH', '')
+        self.credentials_json = os.getenv('GOOGLE_CREDENTIALS_JSON', '')
         self.project_id = os.getenv('GOOGLE_CLOUD_PROJECT', '')
 
         self.credentials = None
@@ -35,19 +37,35 @@ class GoogleWorkspaceClient:
         self.docs_service = None
         self.gmail_service = None
 
-        if GOOGLE_AVAILABLE and self.credentials_path and os.path.exists(self.credentials_path):
-            try:
-                self.credentials = service_account.Credentials.from_service_account_file(
-                    self.credentials_path,
-                    scopes=[
-                        'https://www.googleapis.com/auth/drive',
-                        'https://www.googleapis.com/auth/documents',
-                        'https://www.googleapis.com/auth/gmail.compose'
-                    ]
+        if not GOOGLE_AVAILABLE:
+            return
+
+        scopes = [
+            'https://www.googleapis.com/auth/drive',
+            'https://www.googleapis.com/auth/documents',
+            'https://www.googleapis.com/auth/gmail.compose'
+        ]
+
+        try:
+            # Option 1: Load from JSON string (for Railway/cloud deployment)
+            if self.credentials_json:
+                credentials_info = json.loads(self.credentials_json)
+                self.credentials = service_account.Credentials.from_service_account_info(
+                    credentials_info,
+                    scopes=scopes
                 )
                 self._init_services()
-            except Exception as e:
-                logger.error(f"Failed to initialize Google credentials: {e}")
+                logger.info("Google credentials loaded from GOOGLE_CREDENTIALS_JSON")
+            # Option 2: Load from file path (for local development)
+            elif self.credentials_path and os.path.exists(self.credentials_path):
+                self.credentials = service_account.Credentials.from_service_account_file(
+                    self.credentials_path,
+                    scopes=scopes
+                )
+                self._init_services()
+                logger.info("Google credentials loaded from GOOGLE_CREDENTIALS_PATH")
+        except Exception as e:
+            logger.error(f"Failed to initialize Google credentials: {e}")
 
     def _init_services(self):
         """Initialize Google API services"""
@@ -381,6 +399,301 @@ class GoogleWorkspaceClient:
             'failed': len(files) - successful,
             'results': results
         }
+
+    def get_folder_tree(self, folder_id: str, max_depth: int = 2) -> Dict[str, Any]:
+        """
+        Get folder structure/tree for a Drive folder
+
+        Args:
+            folder_id: Root folder ID
+            max_depth: How deep to traverse (default 2)
+
+        Returns:
+            Folder tree structure
+        """
+        if not self.is_configured():
+            return {'success': False, 'error': 'Google Workspace client not configured'}
+
+        def get_children(parent_id: str, depth: int) -> List[Dict]:
+            if depth > max_depth:
+                return []
+
+            try:
+                results = self.drive_service.files().list(
+                    q=f"'{parent_id}' in parents and trashed=false",
+                    pageSize=100,
+                    fields="files(id, name, mimeType, webViewLink, createdTime, modifiedTime)",
+                    orderBy="name"
+                ).execute()
+
+                items = []
+                for file in results.get('files', []):
+                    item = {
+                        'id': file['id'],
+                        'name': file['name'],
+                        'type': 'folder' if file['mimeType'] == 'application/vnd.google-apps.folder' else 'file',
+                        'url': file.get('webViewLink', ''),
+                        'modified': file.get('modifiedTime', '')
+                    }
+
+                    # Recurse into folders
+                    if item['type'] == 'folder' and depth < max_depth:
+                        item['children'] = get_children(file['id'], depth + 1)
+
+                    items.append(item)
+
+                return items
+            except Exception as e:
+                logger.error(f"Error getting children: {e}")
+                return []
+
+        try:
+            # Get root folder info
+            root = self.drive_service.files().get(
+                fileId=folder_id,
+                fields="id, name, webViewLink"
+            ).execute()
+
+            return {
+                'success': True,
+                'folder_id': folder_id,
+                'name': root.get('name', ''),
+                'url': root.get('webViewLink', ''),
+                'children': get_children(folder_id, 1)
+            }
+        except Exception as e:
+            logger.error(f"Google Drive get folder tree error: {e}")
+            return {'success': False, 'error': str(e)}
+
+    def move_file(self, file_id: str, new_parent_id: str,
+                  remove_from_current: bool = True) -> Dict[str, Any]:
+        """
+        Move a file to a different folder
+
+        Args:
+            file_id: File to move
+            new_parent_id: Destination folder ID
+            remove_from_current: Remove from current parents
+
+        Returns:
+            Move result
+        """
+        if not self.is_configured():
+            return {'success': False, 'error': 'Google Workspace client not configured'}
+
+        try:
+            # Get current parents
+            file = self.drive_service.files().get(
+                fileId=file_id,
+                fields='parents, name'
+            ).execute()
+
+            previous_parents = ",".join(file.get('parents', []))
+
+            # Move the file
+            update_params = {
+                'fileId': file_id,
+                'addParents': new_parent_id,
+                'fields': 'id, name, parents, webViewLink'
+            }
+
+            if remove_from_current and previous_parents:
+                update_params['removeParents'] = previous_parents
+
+            result = self.drive_service.files().update(**update_params).execute()
+
+            return {
+                'success': True,
+                'file_id': result['id'],
+                'name': result['name'],
+                'url': result.get('webViewLink', ''),
+                'new_parent': new_parent_id
+            }
+        except Exception as e:
+            logger.error(f"Google Drive move file error: {e}")
+            return {'success': False, 'error': str(e)}
+
+    def search_files(self, query: str, folder_id: str = None,
+                     file_type: str = None, max_results: int = 50) -> Dict[str, Any]:
+        """
+        Search for files in Google Drive
+
+        Args:
+            query: Search query (searches name and content)
+            folder_id: Limit search to this folder and subfolders
+            file_type: Filter by type ('image', 'video', 'document', 'folder')
+            max_results: Maximum results to return
+
+        Returns:
+            Search results
+        """
+        if not self.is_configured():
+            return {'success': False, 'error': 'Google Workspace client not configured'}
+
+        try:
+            query_parts = [f"name contains '{query}'", "trashed=false"]
+
+            if folder_id:
+                # Search in folder and all subfolders requires fullText search
+                # For now, limit to direct children
+                query_parts.append(f"'{folder_id}' in parents")
+
+            if file_type:
+                type_map = {
+                    'image': "mimeType contains 'image/'",
+                    'video': "mimeType contains 'video/'",
+                    'document': "(mimeType contains 'document' or mimeType contains 'pdf' or mimeType contains 'text/')",
+                    'folder': "mimeType = 'application/vnd.google-apps.folder'"
+                }
+                if file_type in type_map:
+                    query_parts.append(type_map[file_type])
+
+            search_query = ' and '.join(query_parts)
+
+            results = self.drive_service.files().list(
+                q=search_query,
+                pageSize=max_results,
+                fields="files(id, name, mimeType, webViewLink, parents, createdTime, modifiedTime)",
+                orderBy="modifiedTime desc"
+            ).execute()
+
+            files = []
+            for file in results.get('files', []):
+                files.append({
+                    'id': file['id'],
+                    'name': file['name'],
+                    'type': 'folder' if file['mimeType'] == 'application/vnd.google-apps.folder' else 'file',
+                    'mime_type': file['mimeType'],
+                    'url': file.get('webViewLink', ''),
+                    'created': file.get('createdTime', ''),
+                    'modified': file.get('modifiedTime', '')
+                })
+
+            return {
+                'success': True,
+                'query': query,
+                'results': files,
+                'count': len(files)
+            }
+        except Exception as e:
+            logger.error(f"Google Drive search error: {e}")
+            return {'success': False, 'error': str(e)}
+
+    def rename_file(self, file_id: str, new_name: str) -> Dict[str, Any]:
+        """
+        Rename a file or folder
+
+        Args:
+            file_id: File to rename
+            new_name: New name
+
+        Returns:
+            Rename result
+        """
+        if not self.is_configured():
+            return {'success': False, 'error': 'Google Workspace client not configured'}
+
+        try:
+            result = self.drive_service.files().update(
+                fileId=file_id,
+                body={'name': new_name},
+                fields='id, name, webViewLink'
+            ).execute()
+
+            return {
+                'success': True,
+                'file_id': result['id'],
+                'name': result['name'],
+                'url': result.get('webViewLink', '')
+            }
+        except Exception as e:
+            logger.error(f"Google Drive rename error: {e}")
+            return {'success': False, 'error': str(e)}
+
+    def delete_file(self, file_id: str, permanent: bool = False) -> Dict[str, Any]:
+        """
+        Delete a file (move to trash or permanently)
+
+        Args:
+            file_id: File to delete
+            permanent: If True, permanently delete (not recoverable)
+
+        Returns:
+            Delete result
+        """
+        if not self.is_configured():
+            return {'success': False, 'error': 'Google Workspace client not configured'}
+
+        try:
+            if permanent:
+                self.drive_service.files().delete(fileId=file_id).execute()
+            else:
+                # Move to trash
+                self.drive_service.files().update(
+                    fileId=file_id,
+                    body={'trashed': True}
+                ).execute()
+
+            return {
+                'success': True,
+                'file_id': file_id,
+                'action': 'deleted' if permanent else 'trashed'
+            }
+        except Exception as e:
+            logger.error(f"Google Drive delete error: {e}")
+            return {'success': False, 'error': str(e)}
+
+    def get_recent_files(self, folder_id: str = None, days: int = 7,
+                         max_results: int = 20) -> Dict[str, Any]:
+        """
+        Get recently modified files
+
+        Args:
+            folder_id: Limit to this folder
+            days: How many days back to look
+            max_results: Maximum results
+
+        Returns:
+            Recent files
+        """
+        if not self.is_configured():
+            return {'success': False, 'error': 'Google Workspace client not configured'}
+
+        try:
+            from datetime import datetime, timedelta
+            cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat() + 'Z'
+
+            query_parts = [f"modifiedTime > '{cutoff}'", "trashed=false"]
+
+            if folder_id:
+                query_parts.append(f"'{folder_id}' in parents")
+
+            results = self.drive_service.files().list(
+                q=' and '.join(query_parts),
+                pageSize=max_results,
+                fields="files(id, name, mimeType, webViewLink, modifiedTime)",
+                orderBy="modifiedTime desc"
+            ).execute()
+
+            files = []
+            for file in results.get('files', []):
+                files.append({
+                    'id': file['id'],
+                    'name': file['name'],
+                    'type': 'folder' if file['mimeType'] == 'application/vnd.google-apps.folder' else 'file',
+                    'url': file.get('webViewLink', ''),
+                    'modified': file.get('modifiedTime', '')
+                })
+
+            return {
+                'success': True,
+                'results': files,
+                'count': len(files),
+                'days': days
+            }
+        except Exception as e:
+            logger.error(f"Google Drive get recent files error: {e}")
+            return {'success': False, 'error': str(e)}
 
     # ==========================================================================
     # GOOGLE DOCS
