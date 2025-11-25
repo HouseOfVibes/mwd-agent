@@ -5,7 +5,12 @@ Handles branding, website design, social media, copywriting, and workspace manag
 """
 
 import os
+import hmac
+import hashlib
+import smtplib
 import logging
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify
@@ -66,6 +71,8 @@ def check_config():
         'google_workspace': 'configured' if google_client.is_configured() else 'optional',
         'slack_bot': 'configured' if slack_bot.is_configured() else 'optional',
         'supabase': 'configured' if os.getenv('SUPABASE_URL') else 'optional',
+        'email': 'configured' if os.getenv('SMTP_HOST') else 'optional',
+        'contact_webhook': 'configured' if os.getenv('CONTACT_WEBHOOK_SECRET') else 'optional',
     }
     return config_status
 
@@ -211,6 +218,9 @@ def home():
                 'POST /slack/reminders',
                 'POST /slack/digest',
                 'POST /slack/quick-actions'
+            ],
+            'contact': [
+                'POST /api/contact'
             ]
         }
     })
@@ -849,6 +859,317 @@ def slack_quick_actions():
     return jsonify(result)
 
 
+# =============================================================================
+# CONTACT FORM WEBHOOK ENDPOINT
+# =============================================================================
+
+def verify_webhook_signature(payload: bytes, signature: str) -> bool:
+    """
+    Verify HMAC-SHA256 signature from webhook
+
+    Args:
+        payload: Raw request body bytes
+        signature: Signature from X-Webhook-Signature header
+
+    Returns:
+        True if signature is valid, False otherwise
+    """
+    webhook_secret = os.getenv('CONTACT_WEBHOOK_SECRET', '')
+
+    if not webhook_secret:
+        logger.warning("Webhook secret not configured, skipping verification")
+        return True  # Skip verification if not configured
+
+    if not signature:
+        logger.error("No signature provided in webhook request")
+        return False
+
+    expected_signature = hmac.new(
+        webhook_secret.encode('utf-8'),
+        payload,
+        hashlib.sha256
+    ).hexdigest()
+
+    # Use constant-time comparison to prevent timing attacks
+    return hmac.compare_digest(signature, expected_signature)
+
+
+def send_email(to_email: str, subject: str, html_body: str, text_body: str = None) -> dict:
+    """
+    Send email via SMTP
+
+    Args:
+        to_email: Recipient email address
+        subject: Email subject
+        html_body: HTML content of the email
+        text_body: Plain text fallback (optional)
+
+    Returns:
+        Success/failure dict
+    """
+    smtp_host = os.getenv('SMTP_HOST', '')
+    smtp_port = int(os.getenv('SMTP_PORT', '587'))
+    smtp_user = os.getenv('SMTP_USER', '')
+    smtp_password = os.getenv('SMTP_PASSWORD', '')
+    from_email = os.getenv('SMTP_FROM_EMAIL', smtp_user)
+    from_name = os.getenv('SMTP_FROM_NAME', 'MW Design Studio')
+
+    if not all([smtp_host, smtp_user, smtp_password]):
+        logger.warning("SMTP not configured, skipping email")
+        return {'success': False, 'error': 'SMTP not configured'}
+
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = f"{from_name} <{from_email}>"
+        msg['To'] = to_email
+
+        # Add plain text part
+        if text_body:
+            msg.attach(MIMEText(text_body, 'plain'))
+
+        # Add HTML part
+        msg.attach(MIMEText(html_body, 'html'))
+
+        # Send email
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_password)
+            server.send_message(msg)
+
+        logger.info(f"Email sent successfully to {to_email}")
+        return {'success': True, 'to': to_email}
+
+    except Exception as e:
+        logger.error(f"Failed to send email: {e}")
+        return {'success': False, 'error': str(e)}
+
+
+def format_deliverables_email(contact_data: dict, deliverables: dict) -> str:
+    """Format deliverables as HTML email"""
+    company_name = contact_data.get('company_name', 'Your Company')
+
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .container {{ max-width: 800px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: #2c3e50; color: white; padding: 30px; text-align: center; }}
+            .section {{ margin: 30px 0; padding: 20px; background: #f9f9f9; border-radius: 8px; }}
+            .section h2 {{ color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }}
+            .footer {{ text-align: center; padding: 20px; color: #666; font-size: 14px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>Your Strategy Deliverables</h1>
+                <p>Prepared for {company_name}</p>
+            </div>
+    """
+
+    section_titles = {
+        'branding': 'Brand Strategy',
+        'website': 'Website Design Plan',
+        'social': 'Social Media Strategy',
+        'copywriting': 'Marketing Copy'
+    }
+
+    for key, title in section_titles.items():
+        if key in deliverables:
+            content = deliverables[key].get('response', '')
+            # Convert newlines to HTML
+            content_html = content.replace('\n', '<br>')
+            html += f"""
+            <div class="section">
+                <h2>{title}</h2>
+                <div>{content_html}</div>
+            </div>
+            """
+
+    html += """
+            <div class="footer">
+                <p>Generated by MW Design Studio</p>
+                <p>Questions? Reply to this email or visit mwdesignstudio.com</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    return html
+
+
+@app.route('/api/contact', methods=['POST'])
+def receive_contact():
+    """
+    Receive contact form submission from website
+
+    Flow:
+    1. Verify webhook signature
+    2. Generate AI deliverables (branding, website, social, copywriting)
+    3. Send email with deliverables to client
+    4. Notify team via Slack
+    5. Return deliverables in response
+
+    Expected headers:
+        X-Webhook-Signature: HMAC-SHA256 signature
+        Content-Type: application/json
+
+    Expected payload:
+        {
+            "company_name": "...",
+            "contact_name": "...",
+            "contact_email": "...",
+            "phone": "...",
+            "industry": "...",
+            "target_audience": "...",
+            "key_services": [...],
+            "brand_values": [...],
+            "project_goals": [...],
+            "budget": "...",
+            "timeline": "...",
+            "message": "..."
+        }
+    """
+    # Verify webhook signature
+    signature = request.headers.get('X-Webhook-Signature', '')
+    if not verify_webhook_signature(request.data, signature):
+        logger.warning("Invalid webhook signature received")
+        return jsonify({'error': 'Invalid signature'}), 403
+
+    try:
+        contact_data = request.json
+        contact_email = contact_data.get('contact_email', '')
+        company_name = contact_data.get('company_name', 'Unknown')
+
+        logger.info(f"Received contact form: {company_name} - {contact_email}")
+
+        # Generate AI deliverables
+        workflows_triggered = []
+        deliverables = {}
+
+        # Generate branding strategy
+        branding_result = call_claude(BRANDING_PROMPT, contact_data)
+        if branding_result.get('success'):
+            deliverables['branding'] = branding_result
+            workflows_triggered.append('branding')
+
+        # Generate website plan
+        website_result = call_claude(WEBSITE_PROMPT, contact_data)
+        if website_result.get('success'):
+            deliverables['website'] = website_result
+            workflows_triggered.append('website')
+
+        # Generate social media strategy
+        social_result = call_claude(SOCIAL_PROMPT, contact_data)
+        if social_result.get('success'):
+            deliverables['social'] = social_result
+            workflows_triggered.append('social')
+
+        # Generate copywriting
+        copy_result = call_claude(COPYWRITING_PROMPT, contact_data)
+        if copy_result.get('success'):
+            deliverables['copywriting'] = copy_result
+            workflows_triggered.append('copywriting')
+
+        # Create assessment
+        assessment = {
+            'complexity_score': 7,
+            'estimated_hours': len(workflows_triggered) * 20,
+            'recommended_package': 'premium' if len(contact_data.get('key_services', [])) > 2 else 'standard',
+            'summary': f"Client {company_name} in {contact_data.get('industry', 'N/A')} seeking {', '.join(contact_data.get('key_services', []))}",
+            'deliverables_generated': workflows_triggered
+        }
+
+        # Send deliverables email to client
+        client_email_sent = False
+        if contact_email and deliverables:
+            html_email = format_deliverables_email(contact_data, deliverables)
+            email_result = send_email(
+                to_email=contact_email,
+                subject=f"Your Strategy Deliverables - {company_name}",
+                html_body=html_email,
+                text_body=f"Your strategy deliverables are ready. View this email in HTML format for the best experience."
+            )
+            client_email_sent = email_result.get('success', False)
+
+        # Send notification email to team (contact@mwdesign.agency)
+        team_email_sent = False
+        team_email = os.getenv('TEAM_NOTIFICATION_EMAIL', 'contact@mwdesign.agency')
+        if team_email and deliverables:
+            team_html = f"""
+            <h2>New Contact Form Submission</h2>
+            <p><strong>Company:</strong> {company_name}</p>
+            <p><strong>Contact:</strong> {contact_data.get('contact_name', 'N/A')} ({contact_email})</p>
+            <p><strong>Phone:</strong> {contact_data.get('phone', 'N/A')}</p>
+            <p><strong>Industry:</strong> {contact_data.get('industry', 'N/A')}</p>
+            <p><strong>Services:</strong> {', '.join(contact_data.get('key_services', []))}</p>
+            <p><strong>Budget:</strong> {contact_data.get('budget', 'N/A')}</p>
+            <p><strong>Timeline:</strong> {contact_data.get('timeline', 'N/A')}</p>
+            <p><strong>Message:</strong> {contact_data.get('message', 'N/A')}</p>
+            <hr>
+            <p><strong>Deliverables Generated:</strong> {len(deliverables)}</p>
+            <p><strong>Client Email Sent:</strong> {'Yes' if client_email_sent else 'No'}</p>
+            """
+            team_result = send_email(
+                to_email=team_email,
+                subject=f"New Lead: {company_name} - {contact_data.get('contact_name', 'Unknown')}",
+                html_body=team_html,
+                text_body=f"New contact form submission from {company_name}"
+            )
+            team_email_sent = team_result.get('success', False)
+
+        # Notify team via Slack
+        slack_notified = False
+        if slack_bot.is_configured():
+            notification_channel = os.getenv('SLACK_NOTIFICATION_CHANNEL', '')
+            if notification_channel:
+                try:
+                    slack_bot._send_message(
+                        notification_channel,
+                        f"*New Contact Form Submission* 📬\n\n"
+                        f"*Company:* {company_name}\n"
+                        f"*Contact:* {contact_data.get('contact_name', 'N/A')} ({contact_email})\n"
+                        f"*Industry:* {contact_data.get('industry', 'N/A')}\n"
+                        f"*Services:* {', '.join(contact_data.get('key_services', []))}\n"
+                        f"*Budget:* {contact_data.get('budget', 'N/A')}\n\n"
+                        f"*Deliverables Generated:* {len(deliverables)}\n"
+                        f"*Client Email:* {'Sent' if client_email_sent else 'Not sent'}\n"
+                        f"*Team Email:* {'Sent' if team_email_sent else 'Not sent'}"
+                    )
+                    slack_notified = True
+                except Exception as e:
+                    logger.error(f"Failed to send Slack notification: {e}")
+
+        # Return response with generated deliverables
+        return jsonify({
+            'success': True,
+            'message': 'Contact form processed successfully',
+            'workflows_triggered': workflows_triggered,
+            'deliverables_count': len(deliverables),
+            'notifications': {
+                'client_email_sent': client_email_sent,
+                'team_email_sent': team_email_sent,
+                'slack_notified': slack_notified
+            },
+            'assessment': assessment,
+            'deliverables': {
+                key: {
+                    'content': value.get('response'),
+                    'usage': value.get('usage', {})
+                }
+                for key, value in deliverables.items()
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error processing contact form: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     print("\n" + "="*50)
     print("MWD Assistant v2.1.0 starting on port 8080")
@@ -872,6 +1193,9 @@ if __name__ == '__main__':
     print("  Notion: /notion/project, /meeting-notes, /search")
     print("  Google: /google/drive/*, /google/docs/*")
     print("  Slack Bot: /slack/events, /slack/interact")
+
+    print("\nContact Form Endpoint:")
+    print("  POST /api/contact (generates deliverables + sends email)")
 
     print("\n" + "="*50 + "\n")
 
