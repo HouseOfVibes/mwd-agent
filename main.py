@@ -5,8 +5,6 @@ Handles branding, website design, social media, copywriting, and workspace manag
 """
 
 import os
-import hmac
-import hashlib
 import logging
 from datetime import datetime
 from dotenv import load_dotenv
@@ -68,7 +66,6 @@ def check_config():
         'google_workspace': 'configured' if google_client.is_configured() else 'optional',
         'slack_bot': 'configured' if slack_bot.is_configured() else 'optional',
         'supabase': 'configured' if os.getenv('SUPABASE_URL') else 'optional',
-        'contact_webhook': 'configured' if os.getenv('CONTACT_WEBHOOK_SECRET') else 'optional'
     }
     return config_status
 
@@ -214,9 +211,6 @@ def home():
                 'POST /slack/reminders',
                 'POST /slack/digest',
                 'POST /slack/quick-actions'
-            ],
-            'contact': [
-                'POST /api/contact'
             ]
         }
     })
@@ -855,153 +849,6 @@ def slack_quick_actions():
     return jsonify(result)
 
 
-# =============================================================================
-# CONTACT FORM WEBHOOK ENDPOINT
-# =============================================================================
-
-def verify_webhook_signature(payload: bytes, signature: str) -> bool:
-    """
-    Verify HMAC-SHA256 signature from webhook
-
-    Args:
-        payload: Raw request body bytes
-        signature: Signature from X-Webhook-Signature header
-
-    Returns:
-        True if signature is valid, False otherwise
-    """
-    webhook_secret = os.getenv('CONTACT_WEBHOOK_SECRET', '')
-
-    if not webhook_secret:
-        logger.warning("Webhook secret not configured, skipping verification")
-        return True  # Skip verification if not configured
-
-    if not signature:
-        logger.error("No signature provided in webhook request")
-        return False
-
-    expected_signature = hmac.new(
-        webhook_secret.encode('utf-8'),
-        payload,
-        hashlib.sha256
-    ).hexdigest()
-
-    # Use constant-time comparison to prevent timing attacks
-    return hmac.compare_digest(signature, expected_signature)
-
-
-@app.route('/api/contact', methods=['POST'])
-def receive_contact():
-    """
-    Receive contact form submission from website
-
-    Expected headers:
-        X-Webhook-Signature: HMAC-SHA256 signature
-        Content-Type: application/json
-
-    Expected payload:
-        {
-            "company_name": "...",
-            "contact_name": "...",
-            "contact_email": "...",
-            "phone": "...",
-            "industry": "...",
-            "target_audience": "...",
-            "key_services": [...],
-            "brand_values": [...],
-            "project_goals": [...],
-            "budget": "...",
-            "timeline": "...",
-            "message": "..."
-        }
-    """
-    # Verify webhook signature
-    signature = request.headers.get('X-Webhook-Signature', '')
-    if not verify_webhook_signature(request.data, signature):
-        logger.warning("Invalid webhook signature received")
-        return jsonify({'error': 'Invalid signature'}), 403
-
-    try:
-        contact_data = request.json
-
-        logger.info(f"Received contact form: {contact_data.get('company_name')} - {contact_data.get('contact_email')}")
-
-        # Generate AI deliverables
-        workflows_triggered = []
-        deliverables = {}
-
-        # Generate branding strategy
-        branding_result = call_claude(BRANDING_PROMPT, contact_data)
-        if branding_result.get('success'):
-            deliverables['branding'] = branding_result
-            workflows_triggered.append('branding')
-
-        # Generate website plan
-        website_result = call_claude(WEBSITE_PROMPT, contact_data)
-        if website_result.get('success'):
-            deliverables['website'] = website_result
-            workflows_triggered.append('website')
-
-        # Generate social media strategy
-        social_result = call_claude(SOCIAL_PROMPT, contact_data)
-        if social_result.get('success'):
-            deliverables['social'] = social_result
-            workflows_triggered.append('social')
-
-        # Generate copywriting
-        copy_result = call_claude(COPYWRITING_PROMPT, contact_data)
-        if copy_result.get('success'):
-            deliverables['copywriting'] = copy_result
-            workflows_triggered.append('copywriting')
-
-        # Create assessment
-        assessment = {
-            'complexity_score': 7,
-            'estimated_hours': len(workflows_triggered) * 20,
-            'recommended_package': 'premium' if len(contact_data.get('key_services', [])) > 2 else 'standard',
-            'summary': f"Client {contact_data.get('company_name')} in {contact_data.get('industry')} seeking {', '.join(contact_data.get('key_services', []))}",
-            'deliverables_generated': workflows_triggered
-        }
-
-        # Notify via Slack if configured
-        if slack_bot.is_configured():
-            notification_channel = os.getenv('SLACK_NOTIFICATION_CHANNEL', '')
-            if notification_channel:
-                try:
-                    slack_bot._send_message(
-                        notification_channel,
-                        f"*New Contact Form Submission*\n\n"
-                        f"*Company:* {contact_data.get('company_name')}\n"
-                        f"*Contact:* {contact_data.get('contact_name')} ({contact_data.get('contact_email')})\n"
-                        f"*Industry:* {contact_data.get('industry')}\n"
-                        f"*Services:* {', '.join(contact_data.get('key_services', []))}\n"
-                        f"*Budget:* {contact_data.get('budget')}\n\n"
-                        f"*Deliverables Generated:* {len(deliverables)}"
-                    )
-                except Exception as e:
-                    logger.error(f"Failed to send Slack notification: {e}")
-
-        # Return response with generated deliverables
-        return jsonify({
-            'success': True,
-            'message': 'Contact form processed successfully',
-            'workflows_triggered': workflows_triggered,
-            'deliverables_count': len(deliverables),
-            'assessment': assessment,
-            'deliverables': {
-                key: {
-                    'content': value.get('response'),
-                    'usage': value.get('usage', {})
-                }
-                for key, value in deliverables.items()
-            }
-        })
-
-    except Exception as e:
-        logger.error(f"Error processing contact form: {e}")
-        return jsonify({'error': str(e)}), 500
-
-
 if __name__ == '__main__':
     print("\n" + "="*50)
     print("MWD Assistant v2.1.0 starting on port 8080")
@@ -1025,9 +872,6 @@ if __name__ == '__main__':
     print("  Notion: /notion/project, /meeting-notes, /search")
     print("  Google: /google/drive/*, /google/docs/*")
     print("  Slack Bot: /slack/events, /slack/interact")
-
-    print("\nContact Form Endpoint:")
-    print("  POST /api/contact")
 
     print("\n" + "="*50 + "\n")
 
