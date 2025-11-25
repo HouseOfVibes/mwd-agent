@@ -1017,6 +1017,241 @@ class NotionClient:
 
         return pages
 
+    def create_lead_with_deliverables(self, database_id: str, lead_data: Dict, deliverables: Dict) -> Dict[str, Any]:
+        """
+        Create a lead entry in CRM database with generated deliverables
+
+        Args:
+            database_id: CRM/Leads database ID
+            lead_data: Lead information:
+                - name: Lead name
+                - email: Lead email
+                - company: Company name (optional)
+                - phone: Phone number (optional)
+                - services: List of requested services
+                - message: Original message/inquiry
+            deliverables: Generated deliverables dict with keys:
+                - branding: Branding strategy content
+                - website: Website strategy content
+                - social: Social media strategy content
+                - copywriting: Copywriting content
+
+        Returns:
+            Created page info with URL
+        """
+        if not self.is_configured():
+            return {'success': False, 'error': 'Notion client not configured'}
+
+        try:
+            lead_name = lead_data.get('name', 'New Lead')
+            company = lead_data.get('company', '')
+            display_name = f"{lead_name} - {company}" if company else lead_name
+
+            # Create the main lead page with properties
+            properties = {
+                'Name': {
+                    'title': [{'text': {'content': display_name}}]
+                }
+            }
+
+            # Add contact info as properties (if database has these columns)
+            if lead_data.get('email'):
+                properties['Email'] = {
+                    'email': lead_data['email']
+                }
+
+            if lead_data.get('phone'):
+                properties['Phone'] = {
+                    'phone_number': lead_data['phone']
+                }
+
+            if lead_data.get('company'):
+                properties['Company'] = {
+                    'rich_text': [{'text': {'content': lead_data['company']}}]
+                }
+
+            if lead_data.get('services'):
+                # Try multi-select for services
+                properties['Services'] = {
+                    'multi_select': [{'name': s} for s in lead_data['services']]
+                }
+
+            # Set status to New Lead
+            properties['Status'] = {
+                'select': {'name': 'New Lead'}
+            }
+
+            # Add date
+            properties['Date'] = {
+                'date': {'start': datetime.now().strftime('%Y-%m-%d')}
+            }
+
+            page = self.client.pages.create(
+                parent={'database_id': database_id},
+                properties=properties,
+                icon={'type': 'emoji', 'emoji': '🎯'}
+            )
+
+            page_id = page['id']
+
+            # Build content blocks with deliverables
+            content_blocks = []
+
+            # Lead Info Section
+            content_blocks.extend([
+                {
+                    'object': 'block',
+                    'type': 'callout',
+                    'callout': {
+                        'rich_text': [{'text': {'content': f"New lead from website contact form - {datetime.now().strftime('%B %d, %Y')}"}}],
+                        'icon': {'type': 'emoji', 'emoji': '📬'}
+                    }
+                },
+                {
+                    'object': 'block',
+                    'type': 'heading_1',
+                    'heading_1': {
+                        'rich_text': [{'text': {'content': 'Contact Information'}}]
+                    }
+                },
+                {
+                    'object': 'block',
+                    'type': 'paragraph',
+                    'paragraph': {
+                        'rich_text': [
+                            {'text': {'content': f"Name: {lead_data.get('name', 'N/A')}\n"}},
+                            {'text': {'content': f"Email: {lead_data.get('email', 'N/A')}\n"}},
+                            {'text': {'content': f"Phone: {lead_data.get('phone', 'N/A')}\n"}},
+                            {'text': {'content': f"Company: {lead_data.get('company', 'N/A')}"}}
+                        ]
+                    }
+                }
+            ])
+
+            # Original Message
+            if lead_data.get('message'):
+                content_blocks.extend([
+                    {
+                        'object': 'block',
+                        'type': 'heading_2',
+                        'heading_2': {
+                            'rich_text': [{'text': {'content': 'Original Message'}}]
+                        }
+                    },
+                    {
+                        'object': 'block',
+                        'type': 'quote',
+                        'quote': {
+                            'rich_text': [{'text': {'content': lead_data['message'][:2000]}}]  # Notion limit
+                        }
+                    }
+                ])
+
+            # Divider before deliverables
+            content_blocks.append({
+                'object': 'block',
+                'type': 'divider',
+                'divider': {}
+            })
+
+            # Deliverables Header
+            content_blocks.append({
+                'object': 'block',
+                'type': 'heading_1',
+                'heading_1': {
+                    'rich_text': [{'text': {'content': '📦 Generated Deliverables'}}]
+                }
+            })
+
+            # Add each deliverable section
+            deliverable_sections = [
+                ('branding', '🎨 Branding Strategy', 'Brand positioning, identity, and guidelines'),
+                ('website', '🌐 Website Strategy', 'Sitemap, design direction, and user experience'),
+                ('social', '📱 Social Media Strategy', 'Platform strategy and content plan'),
+                ('copywriting', '✍️ Copywriting', 'Messaging, taglines, and content')
+            ]
+
+            for key, title, description in deliverable_sections:
+                if key in deliverables and deliverables[key]:
+                    content = deliverables[key]
+                    # Handle both string and dict responses
+                    if isinstance(content, dict):
+                        content = content.get('content', content.get('strategy', str(content)))
+
+                    content_blocks.extend([
+                        {
+                            'object': 'block',
+                            'type': 'heading_2',
+                            'heading_2': {
+                                'rich_text': [{'text': {'content': title}}]
+                            }
+                        },
+                        {
+                            'object': 'block',
+                            'type': 'paragraph',
+                            'paragraph': {
+                                'rich_text': [{'text': {'content': description, 'annotations': {'italic': True}}}]
+                            }
+                        },
+                        {
+                            'object': 'block',
+                            'type': 'toggle',
+                            'toggle': {
+                                'rich_text': [{'text': {'content': f'View {title}'}}],
+                                'children': self._split_content_to_blocks(str(content))
+                            }
+                        }
+                    ])
+
+            # Add the content blocks to the page
+            self.client.blocks.children.append(
+                block_id=page_id,
+                children=content_blocks
+            )
+
+            return {
+                'success': True,
+                'page_id': page_id,
+                'page_url': page['url'],
+                'lead_name': display_name
+            }
+
+        except Exception as e:
+            logger.error(f"Notion create lead with deliverables error: {e}")
+            return {'success': False, 'error': str(e)}
+
+    def _split_content_to_blocks(self, content: str, max_length: int = 2000) -> List[Dict]:
+        """Split long content into multiple paragraph blocks (Notion has 2000 char limit per block)"""
+        blocks = []
+        # Split by paragraphs first
+        paragraphs = content.split('\n\n')
+
+        for para in paragraphs:
+            if not para.strip():
+                continue
+
+            # If paragraph is too long, split it
+            if len(para) > max_length:
+                chunks = [para[i:i+max_length] for i in range(0, len(para), max_length)]
+                for chunk in chunks:
+                    blocks.append({
+                        'object': 'block',
+                        'type': 'paragraph',
+                        'paragraph': {
+                            'rich_text': [{'text': {'content': chunk}}]
+                        }
+                    })
+            else:
+                blocks.append({
+                    'object': 'block',
+                    'type': 'paragraph',
+                    'paragraph': {
+                        'rich_text': [{'text': {'content': para}}]
+                    }
+                })
+
+        return blocks if blocks else [{'object': 'block', 'type': 'paragraph', 'paragraph': {'rich_text': [{'text': {'content': 'No content available'}}]}}]
+
     def get_client_profile_by_channel(self, database_id: str, slack_channel: str) -> Dict[str, Any]:
         """
         Get client profile from Notion by Slack channel name

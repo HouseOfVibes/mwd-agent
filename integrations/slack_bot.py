@@ -261,9 +261,17 @@ Know who handles what - route questions to the right person when needed.
 7. MEETING_NOTES - Process and summarize meeting transcripts (via Gemini)
 
 **Workspace Tools:**
-8. NOTION - Search workspace, get overview, query databases, create/update projects, meeting notes
+8. NOTION - Search workspace, get overview, query databases, create/update projects, meeting notes, create leads with deliverables
 9. GOOGLE_DRIVE - Create folders, project structures, documents
 10. CLIENT_PORTAL - Build comprehensive Notion portals for clients
+
+**Lead Processing Workflow:**
+When the team gives you lead info (name, email, company, industry, services needed, message), you should:
+1. Generate all 4 deliverables: BRANDING, WEBSITE, SOCIAL, COPYWRITING strategies
+2. Save everything to Notion CRM using NOTION with operation "create_lead_with_deliverables"
+   - lead_data: {name, email, company, phone, services, message}
+   - deliverables: {branding: "...", website: "...", social: "...", copywriting: "..."}
+3. Provide link to the Notion page for team review
 
 **Communication:**
 11. TEAM_MESSAGE - Draft internal team messages (via GPT)
@@ -520,8 +528,14 @@ Subject: [subject line]
                             params.get('parent_page_id', ''),
                             params.get('client_data', {})
                         )
+                    elif operation == 'create_lead_with_deliverables':
+                        result = client.create_lead_with_deliverables(
+                            params.get('database_id') or os.getenv('NOTION_CRM_DATABASE', ''),
+                            params.get('lead_data', {}),
+                            params.get('deliverables', {})
+                        )
                     else:
-                        result = {'success': False, 'error': f'Unknown Notion operation: {operation}. Available: create_project, search, search_all, query_database, get_database_schema, update_status, create_meeting_notes, workspace_overview, create_client_portal'}
+                        result = {'success': False, 'error': f'Unknown Notion operation: {operation}. Available: create_project, search, search_all, query_database, get_database_schema, update_status, create_meeting_notes, workspace_overview, create_client_portal, create_lead_with_deliverables'}
 
                 elif action_type == 'GOOGLE_DRIVE':
                     from integrations.google_workspace import GoogleWorkspaceClient
