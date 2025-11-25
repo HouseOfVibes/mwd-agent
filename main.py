@@ -594,13 +594,8 @@ def slack_events():
 
     if event_type == 'reaction_added':
         # Handle reaction to move files to Drive
-        async def process_reaction():
-            await slack_features.handle_reaction_to_move(event)
-
         try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(process_reaction())
+            asyncio.run(slack_features.handle_reaction_to_move(event))
         except Exception as e:
             logger.error(f"Error processing reaction: {e}")
 
@@ -619,25 +614,14 @@ def slack_events():
 
         # Check for file uploads
         if event.get('files'):
-            async def process_files():
-                await slack_features.handle_file_upload(event, channel_id)
-
             try:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(process_files())
+                asyncio.run(slack_features.handle_file_upload(event, channel_id))
             except Exception as e:
                 logger.error(f"Error processing file upload: {e}")
         else:
-            # Process message asynchronously
-            async def process():
-                await slack_bot.handle_message(event, channel_id, thread_ts)
-
-            # Run async handler
+            # Process message with AI orchestration
             try:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(process())
+                asyncio.run(slack_bot.handle_message(event, channel_id, thread_ts))
             except Exception as e:
                 logger.error(f"Error processing Slack event: {e}")
 
