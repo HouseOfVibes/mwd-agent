@@ -376,7 +376,6 @@ Analyze this request and provide your orchestration plan."""
                     )
 
                 elif action_type == 'BRANDING':
-                    from integrations.invoice_system import InvoiceSystemClient
                     # Call internal branding endpoint
                     import requests
                     result = requests.post(
